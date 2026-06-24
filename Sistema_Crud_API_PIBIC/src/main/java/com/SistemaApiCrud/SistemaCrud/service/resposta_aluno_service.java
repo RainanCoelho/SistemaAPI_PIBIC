@@ -1,9 +1,14 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.desempenho_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.historico_aluno_DTO;
@@ -49,6 +54,10 @@ public class resposta_aluno_service {
     @Autowired
     private professor_repository professorRepository;
 
+    @Autowired
+    private TentativaCasoService tentativaCasoService;
+
+    @Transactional
     public resultado_caso_DTO responderCaso(Long idAluno, Long idCaso, responder_caso_request_DTO request) {
         Aluno aluno = alunoRepository.findById(idAluno)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Aluno nao encontrado"));
@@ -60,24 +69,57 @@ public class resposta_aluno_service {
             throw new BusinessException("O caso clinico ainda nao esta publicado");
         }
 
+        if (!repository.findByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, idCaso).isEmpty()) {
+            throw new BusinessException("O aluno ja respondeu este caso clinico");
+        }
+
+        var tentativa = tentativaCasoService.validarPrazo(idAluno, idCaso);
+        List<pergunta> perguntasDoCaso = perguntaRepository.findByCasoClinicoIdCaso(idCaso);
+        validarRespostasCompletas(perguntasDoCaso, request);
+
         List<RespostaAluno> respostas = request.getRespostas()
                 .stream()
                 .map(resposta -> criarResposta(aluno, caso, resposta))
                 .toList();
 
         List<RespostaAluno> respostasSalvas = repository.saveAll(respostas);
+        tentativaCasoService.finalizar(tentativa);
         return montarResultado(idAluno, idCaso, respostasSalvas);
     }
 
-    public historico_aluno_DTO buscarHistorico(Long idAluno) {
+    private void validarRespostasCompletas(
+            List<pergunta> perguntasDoCaso,
+            responder_caso_request_DTO request) {
+        if (perguntasDoCaso.isEmpty()) {
+            throw new BusinessException("O caso clinico nao possui perguntas");
+        }
+
+        Set<Long> idsRecebidos = request.getRespostas()
+                .stream()
+                .map(resposta_pergunta_request_DTO::getIdPergunta)
+                .collect(Collectors.toSet());
+
+        if (idsRecebidos.size() != request.getRespostas().size()) {
+            throw new BadRequestException("Cada pergunta deve ser respondida uma unica vez");
+        }
+
+        Set<Long> idsEsperados = perguntasDoCaso.stream()
+                .map(pergunta::getId)
+                .collect(Collectors.toSet());
+
+        if (!idsRecebidos.equals(idsEsperados)) {
+            throw new BadRequestException("Todas as perguntas do caso devem ser respondidas exatamente uma vez");
+        }
+    }
+
+    public historico_aluno_DTO buscarHistorico(Long idAluno, Pageable pageable) {
         if (!alunoRepository.existsById(idAluno)) {
             throw new RecursoNaoEncontradoException("Aluno nao encontrado");
         }
 
-        List<resposta_aluno_DTO> respostas = repository.findByAlunoIdAlunoOrderByDataRespostaDesc(idAluno)
-                .stream()
-                .map(this::paraDTO)
-                .toList();
+        Page<resposta_aluno_DTO> respostas = repository
+                .findByAlunoIdAlunoOrderByDataRespostaDesc(idAluno, pageable)
+                .map(this::paraDTO);
 
         return new historico_aluno_DTO(idAluno, respostas);
     }
@@ -87,9 +129,8 @@ public class resposta_aluno_service {
             throw new RecursoNaoEncontradoException("Aluno nao encontrado");
         }
 
-        List<RespostaAluno> respostas = repository.findByAlunoIdAlunoOrderByDataRespostaDesc(idAluno);
-        long total = respostas.size();
-        long corretas = respostas.stream().filter(resposta -> Boolean.TRUE.equals(resposta.getCorreta())).count();
+        long total = repository.countByAlunoIdAluno(idAluno);
+        long corretas = repository.countByAlunoIdAlunoAndCorretaTrue(idAluno);
 
         return new desempenho_aluno_DTO(idAluno, total, corretas, calcularAproveitamento(total, corretas));
     }
@@ -99,9 +140,8 @@ public class resposta_aluno_service {
             throw new RecursoNaoEncontradoException("Professor nao encontrado");
         }
 
-        List<RespostaAluno> respostas = repository.findByCasoClinicoProfessorId(idProfessor);
-        long total = respostas.size();
-        long corretas = respostas.stream().filter(resposta -> Boolean.TRUE.equals(resposta.getCorreta())).count();
+        long total = repository.countByCasoClinicoProfessorId(idProfessor);
+        long corretas = repository.countByCasoClinicoProfessorIdAndCorretaTrue(idProfessor);
 
         return new relatorio_desempenho_professor_DTO(idProfessor, total, corretas, calcularAproveitamento(total, corretas));
     }

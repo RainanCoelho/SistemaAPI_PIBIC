@@ -1,7 +1,7 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,11 +21,11 @@ public class paciente_service {
     @Autowired
     private caso_clinico_repository casoRepository;
 
-    public List<paciente_DTO> listar() {
-        return repository.findAll()
-                .stream()
-                .map(this::paraDTO)
-                .toList();
+    public Page<paciente_DTO> listar(Pageable pageable, Long idProfessor) {
+        if (idProfessor == null) {
+            return repository.findAll(pageable).map(this::paraDTO);
+        }
+        return repository.findByCasoClinicoProfessorId(idProfessor, pageable).map(this::paraDTO);
     }
 
     public paciente_DTO buscarPorId(Long id) {

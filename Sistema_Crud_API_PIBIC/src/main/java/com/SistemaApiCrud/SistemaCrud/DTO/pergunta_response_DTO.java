@@ -39,5 +39,4 @@ public class pergunta_response_DTO {
 
     private String gabarito;
 
-    private String tempoEsperado;
 }

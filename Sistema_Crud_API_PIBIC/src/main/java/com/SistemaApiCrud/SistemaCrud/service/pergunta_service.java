@@ -3,6 +3,8 @@ package com.SistemaApiCrud.SistemaCrud.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,33 +41,24 @@ public class pergunta_service {
         this.mapper = mapper;
     }
 
-    public List<pergunta_response_DTO> listar() {
-        return repository.findAll()
-                .stream()
-                .map(this::paraDTO)
-                .toList();
+    public Page<pergunta_response_DTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(this::paraDTO);
     }
 
-    public List<pergunta_response_DTO> listarPorProfessor(Long idProfessor) {
-        return repository.findByCasoClinicoProfessorId(idProfessor)
-                .stream()
-                .map(this::paraDTO)
-                .toList();
+    public Page<pergunta_response_DTO> listarPorProfessor(Long idProfessor, Pageable pageable) {
+        return repository.findByCasoClinicoProfessorId(idProfessor, pageable).map(this::paraDTO);
     }
 
     public pergunta_response_DTO buscarPorId(Long id) {
         return paraDTO(buscarEntityPorId(id));
     }
 
-    public List<pergunta_response_DTO> listarPorCaso(Long idCaso) {
+    public Page<pergunta_response_DTO> listarPorCaso(Long idCaso, Pageable pageable) {
         if (!casoRepository.existsById(idCaso)) {
             throw new RecursoNaoEncontradoException("Caso clinico nao encontrado");
         }
 
-        return repository.findByCasoClinicoIdCaso(idCaso)
-                .stream()
-                .map(this::paraDTO)
-                .toList();
+        return repository.findByCasoClinicoIdCaso(idCaso, pageable).map(this::paraDTO);
     }
 
     @Transactional

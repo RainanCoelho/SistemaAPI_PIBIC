@@ -27,6 +27,8 @@ paths:
                 $ref: "#/components/schemas/LoginResponse"
         "401":
           description: Credenciais invalidas
+        "429":
+          description: Muitas tentativas de login
   /alunos:
     get:
       summary: Lista alunos
@@ -138,13 +140,17 @@ paths:
           description: Casos publicados
   /alunos/{id}/casos/{casoId}/completo:
     get:
-      summary: Busca caso publicado completo para o aluno
+      summary: Abre o caso publicado e inicia ou retoma a tentativa do aluno
       parameters:
         - $ref: "#/components/parameters/id"
         - $ref: "#/components/parameters/casoId"
       responses:
         "200":
           description: Caso completo publicado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoAluno"
         "400":
           description: Caso ainda nao publicado
   /alunos/{id}/casos/{casoId}/responder:
@@ -266,9 +272,19 @@ paths:
           description: Casos encontrados
     post:
       summary: Cria caso clinico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasoClinicoRequest"
       responses:
         "201":
           description: Caso criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoResponse"
   /casos/{id}:
     get:
       summary: Busca caso por ID
@@ -281,6 +297,12 @@ paths:
       summary: Atualiza caso
       parameters:
         - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasoClinicoRequest"
       responses:
         "200":
           description: Caso atualizado
@@ -360,9 +382,11 @@ components:
       properties:
         username:
           type: string
+          maxLength: 100
         password:
           type: string
           format: password
+          maxLength: 72
     LoginResponse:
       type: object
       properties:
@@ -399,9 +423,13 @@ components:
       properties:
         username:
           type: string
+          minLength: 3
+          maxLength: 100
         senha:
           type: string
           format: password
+          minLength: 12
+          maxLength: 72
         role:
           type: string
           enum: [ADMIN, PROFESSOR, ALUNO]
@@ -448,13 +476,17 @@ components:
       properties:
         nome:
           type: string
+          maxLength: 150
         email:
           type: string
           format: email
+          maxLength: 254
         curso:
           type: string
+          maxLength: 120
         periodo:
           type: string
+          maxLength: 20
     AlunoResponse:
       type: object
       properties:
@@ -469,6 +501,66 @@ components:
           type: string
         periodo:
           type: string
+    CasoClinicoRequest:
+      type: object
+      required:
+        - titulo
+        - dificuldade
+        - disciplina
+        - areaSaude
+        - estilo
+        - especialidade
+      properties:
+        idProfessor:
+          type: integer
+          format: int64
+          nullable: true
+        titulo:
+          type: string
+          maxLength: 200
+        dificuldade:
+          type: string
+          maxLength: 30
+        disciplina:
+          type: string
+          maxLength: 120
+        areaSaude:
+          type: string
+          maxLength: 120
+        estilo:
+          type: string
+          maxLength: 60
+        especialidade:
+          type: string
+          maxLength: 120
+        status:
+          type: string
+          enum: [RASCUNHO, PUBLICADO, ARQUIVADO]
+        objetivoAprendizagem:
+          type: string
+        nivelDificuldade:
+          type: string
+          enum: [BAIXA, MEDIA, ALTA]
+        tempoLimiteMinutos:
+          type: integer
+          minimum: 15
+          maximum: 480
+          default: 60
+          description: Tempo total para responder o caso completo.
+    CasoClinicoResponse:
+      allOf:
+        - $ref: "#/components/schemas/CasoClinicoRequest"
+        - type: object
+          properties:
+            idCaso:
+              type: integer
+              format: int64
+            dataCriacao:
+              type: string
+              format: date-time
+            dataAtualizacao:
+              type: string
+              format: date-time
     AlternativaPergunta:
       type: object
       properties:
@@ -477,10 +569,22 @@ components:
           format: int64
         letra:
           type: string
+          maxLength: 10
         texto:
           type: string
         correta:
           type: boolean
+    AlternativaAluno:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        letra:
+          type: string
+          maxLength: 10
+        texto:
+          type: string
     PerguntaRequest:
       type: object
       required:
@@ -488,7 +592,6 @@ components:
         - tipo
         - gabarito
         - resposta
-        - tempoEsperado
       properties:
         idCaso:
           type: integer
@@ -503,8 +606,6 @@ components:
         gabarito:
           type: string
         resposta:
-          type: string
-        tempoEsperado:
           type: string
         alternativas:
           type: array
@@ -529,12 +630,74 @@ components:
           type: string
         resposta:
           type: string
-        tempoEsperado:
-          type: string
         alternativas:
           type: array
           items:
             $ref: "#/components/schemas/AlternativaPergunta"
+    PerguntaAluno:
+      type: object
+      description: Pergunta sem campos de correcao ou gabarito.
+      properties:
+        id:
+          type: integer
+          format: int64
+        idCaso:
+          type: integer
+          format: int64
+        texto:
+          type: string
+        tipo:
+          type: string
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+        alternativas:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlternativaAluno"
+    ConteudoClinicoAluno:
+      type: object
+      description: Conteudo clinico sem o diagnostico esperado.
+      properties:
+        idConteudo:
+          type: integer
+          format: int64
+        idCaso:
+          type: integer
+          format: int64
+        sintomas:
+          type: string
+        contexto:
+          type: string
+        examClinico:
+          type: string
+        antecClinico:
+          type: string
+    CasoClinicoAluno:
+      type: object
+      description: Visao segura do caso destinada ao aluno.
+      properties:
+        caso:
+          $ref: "#/components/schemas/CasoClinicoResponse"
+        pacientes:
+          type: array
+          items:
+            type: object
+        conteudosClinicos:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConteudoClinicoAluno"
+        perguntas:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerguntaAluno"
+        inicioTentativa:
+          type: string
+          format: date-time
+        prazoFinal:
+          type: string
+          format: date-time
+        segundosRestantes:
+          type: integer
+          format: int64
     ResponderCasoRequest:
       type: object
       properties:

@@ -1,10 +1,10 @@
 @baseUrl = http://localhost:8080
 @adminUser = admin
-@adminPass = admin123
+@adminPass = admin-dev-123
 @professorUser = professor
-@professorPass = professor123
+@professorPass = professor-dev-123
 @alunoUser = aluno
-@alunoPass = aluno123
+@alunoPass = aluno-dev-123
 
 ### OpenAPI
 GET {{baseUrl}}/openapi.yaml
@@ -50,8 +50,8 @@ Content-Type: application/json
 
 {
   "username": "novo-professor",
-  "senha": "senha123",
-  "role": "PROFESSOR",
+  "senha": "senha-segura-123",
+  "role": "ADMIN",
   "ativo": true
 }
 
@@ -92,7 +92,8 @@ Content-Type: application/json
   "estilo": "Multipla escolha",
   "especialidade": "Pneumologia",
   "objetivoAprendizagem": "Avaliar conduta inicial",
-  "nivelDificuldade": "MEDIA"
+  "nivelDificuldade": "MEDIA",
+  "tempoLimiteMinutos": 90
 }
 
 ### Criar pergunta com alternativas flexiveis
@@ -105,7 +106,6 @@ Content-Type: application/json
   "tipo": "MULTIPLA_ESCOLHA",
   "gabarito": "A",
   "resposta": "A",
-  "tempoEsperado": "5 minutos",
   "alternativas": [
     { "letra": "A", "texto": "Conduta correta", "correta": true },
     { "letra": "B", "texto": "Conduta inadequada", "correta": false }

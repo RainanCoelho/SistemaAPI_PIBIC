@@ -28,20 +28,22 @@ public class conteudo_clinico {
     private Long idConteudo;
 
     @ManyToOne
-    @JoinColumn(name = "fk_id_caso")
+    @JoinColumn(name = "fk_id_caso", nullable = false)
     private casos_clinicos casoClinico;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String sintomas;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String contexto;
 
-    @Column(name = "exam_clinico")
+    @Column(name = "exam_clinico", nullable = false, columnDefinition = "TEXT")
     private String examClinico;
 
-    @Column(name = "antec_clinico")
+    @Column(name = "antec_clinico", nullable = false, columnDefinition = "TEXT")
     private String antecClinico;
 
-    @Column(name = "diag_esperado")
+    @Column(name = "diag_esperado", nullable = false, columnDefinition = "TEXT")
     private String diagEsperado;
 	
 	

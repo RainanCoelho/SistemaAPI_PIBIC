@@ -24,7 +24,7 @@
     },
     {
       "key": "password",
-      "value": "admin123"
+      "value": "admin-dev-123"
     },
     {
       "key": "token",
@@ -81,7 +81,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"novo-professor\",\n  \"senha\": \"senha123\",\n  \"role\": \"PROFESSOR\",\n  \"ativo\": true\n}"
+          "raw": "{\n  \"username\": \"novo-admin\",\n  \"senha\": \"senha-segura-123\",\n  \"role\": \"ADMIN\",\n  \"ativo\": true\n}"
         },
         "url": "{{baseUrl}}/usuarios"
       }
@@ -132,7 +132,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"idProfessor\": 1,\n  \"titulo\": \"Caso respiratorio\",\n  \"dificuldade\": \"MEDIA\",\n  \"disciplina\": \"Clinica Medica\",\n  \"areaSaude\": \"Medicina\",\n  \"estilo\": \"Multipla escolha\",\n  \"especialidade\": \"Pneumologia\",\n  \"objetivoAprendizagem\": \"Avaliar conduta inicial\",\n  \"nivelDificuldade\": \"MEDIA\"\n}"
+          "raw": "{\n  \"idProfessor\": 1,\n  \"titulo\": \"Caso respiratorio\",\n  \"dificuldade\": \"MEDIA\",\n  \"disciplina\": \"Clinica Medica\",\n  \"areaSaude\": \"Medicina\",\n  \"estilo\": \"Multipla escolha\",\n  \"especialidade\": \"Pneumologia\",\n  \"objetivoAprendizagem\": \"Avaliar conduta inicial\",\n  \"nivelDificuldade\": \"MEDIA\",\n  \"tempoLimiteMinutos\": 90\n}"
         },
         "url": "{{baseUrl}}/casos"
       }
@@ -149,7 +149,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"texto\": \"Qual a melhor conduta inicial?\",\n  \"tipo\": \"MULTIPLA_ESCOLHA\",\n  \"gabarito\": \"A\",\n  \"resposta\": \"A\",\n  \"tempoEsperado\": \"5 minutos\",\n  \"alternativas\": [\n    { \"letra\": \"A\", \"texto\": \"Conduta correta\", \"correta\": true },\n    { \"letra\": \"B\", \"texto\": \"Conduta inadequada\", \"correta\": false }\n  ]\n}"
+          "raw": "{\n  \"texto\": \"Qual a melhor conduta inicial?\",\n  \"tipo\": \"MULTIPLA_ESCOLHA\",\n  \"gabarito\": \"A\",\n  \"resposta\": \"A\",\n  \"alternativas\": [\n    { \"letra\": \"A\", \"texto\": \"Conduta correta\", \"correta\": true },\n    { \"letra\": \"B\", \"texto\": \"Conduta inadequada\", \"correta\": false }\n  ]\n}"
         },
         "url": "{{baseUrl}}/casos/1/perguntas"
       }

@@ -47,6 +47,4 @@ public class pergunta_request_DTO {
     @NotBlank(message = "O gabarito e obrigatorio")
     private String gabarito;
 
-    @NotBlank(message = "O tempo esperado e obrigatorio")
-    private String tempoEsperado;
 }

@@ -29,23 +29,24 @@ public class RespostaAluno {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "fk_id_aluno")
+    @JoinColumn(name = "fk_id_aluno", nullable = false)
     private Aluno aluno;
 
     @ManyToOne
-    @JoinColumn(name = "fk_id_caso")
+    @JoinColumn(name = "fk_id_caso", nullable = false)
     private casos_clinicos casoClinico;
 
     @ManyToOne
-    @JoinColumn(name = "fk_id_pergunta")
+    @JoinColumn(name = "fk_id_pergunta", nullable = false)
     private pergunta pergunta;
 
-    @Column(name = "resposta_marcada")
+    @Column(name = "resposta_marcada", nullable = false, columnDefinition = "TEXT")
     private String respostaMarcada;
 
+    @Column(nullable = false)
     private Boolean correta;
 
-    @Column(name = "data_resposta")
+    @Column(name = "data_resposta", nullable = false)
     private LocalDateTime dataResposta;
 
     @PrePersist

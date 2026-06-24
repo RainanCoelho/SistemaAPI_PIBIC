@@ -25,12 +25,16 @@ public class Aluno {
 		@Column(name = "id_aluno")
 	    private Long idAluno;
 
+	    @Column(nullable = false, length = 150)
 	    private String nome;
 
+	    @Column(nullable = false, length = 254)
 	    private String email;
 
+	    @Column(nullable = false, length = 120)
 	    private String curso;
 
+	    @Column(nullable = false, length = 20)
 	    private String periodo;
 	
 	    

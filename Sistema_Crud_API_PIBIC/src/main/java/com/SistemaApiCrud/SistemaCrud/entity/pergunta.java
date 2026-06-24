@@ -32,38 +32,35 @@ public class pergunta {
 	    private Long id;
 
 	    @ManyToOne
-	    @JoinColumn(name = "fk_id_caso")
+	    @JoinColumn(name = "fk_id_caso", nullable = false)
 	    private casos_clinicos casoClinico;
 
+        @Column(nullable = false, columnDefinition = "TEXT")
 	    private String texto;
 
-	    @Column(name = "alternativa_a")
+	    @Column(name = "alternativa_a", columnDefinition = "TEXT")
 	    private String alternativaA;
 
-	    @Column(name = "alternativa_b")
+	    @Column(name = "alternativa_b", columnDefinition = "TEXT")
 	    private String alternativaB;
 
-	    @Column(name = "alternativa_c")
+	    @Column(name = "alternativa_c", columnDefinition = "TEXT")
 	    private String alternativaC;
 
-	    @Column(name = "alternativa_d")
+	    @Column(name = "alternativa_d", columnDefinition = "TEXT")
 	    private String alternativaD;
 
-	    @Column(name = "alternativa_e")
+	    @Column(name = "alternativa_e", columnDefinition = "TEXT")
 	    private String alternativaE;
 	    
+        @Column(nullable = false, columnDefinition = "TEXT")
 	    private String resposta;
 
 	    @Enumerated(EnumType.STRING)
+        @Column(nullable = false, length = 40)
 	    private TipoPergunta tipo;
 
+        @Column(nullable = false, columnDefinition = "TEXT")
 	    private String gabarito;
 
-	    @Column(name = "tempo_esperado")
-	    private String tempoEsperado;
-	    
-	    
-	
-	
-	
 }

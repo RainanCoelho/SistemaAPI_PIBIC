@@ -11,6 +11,8 @@ import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
 import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
 
@@ -20,14 +22,20 @@ public class AutorizacaoUsuarioService {
     private final usuario_repository usuarioRepository;
     private final caso_clinico_repository casoRepository;
     private final pergunta_repository perguntaRepository;
+    private final paciente_repository pacienteRepository;
+    private final conteudo_clinico_repository conteudoRepository;
 
     public AutorizacaoUsuarioService(
             usuario_repository usuarioRepository,
             caso_clinico_repository casoRepository,
-            pergunta_repository perguntaRepository) {
+            pergunta_repository perguntaRepository,
+            paciente_repository pacienteRepository,
+            conteudo_clinico_repository conteudoRepository) {
         this.usuarioRepository = usuarioRepository;
         this.casoRepository = casoRepository;
         this.perguntaRepository = perguntaRepository;
+        this.pacienteRepository = pacienteRepository;
+        this.conteudoRepository = conteudoRepository;
     }
 
     public boolean isAdmin() {
@@ -137,6 +145,24 @@ public class AutorizacaoUsuarioService {
         }
 
         validarAcessoCaso(pergunta.getCasoClinico().getIdCaso());
+    }
+
+    public void validarAcessoPaciente(Long idPaciente) {
+        var paciente = pacienteRepository.findById(idPaciente)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paciente nao encontrado"));
+        if (paciente.getCasoClinico() == null) {
+            negar();
+        }
+        validarAcessoCaso(paciente.getCasoClinico().getIdCaso());
+    }
+
+    public void validarAcessoConteudo(Long idConteudo) {
+        var conteudo = conteudoRepository.findById(idConteudo)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Conteudo clinico nao encontrado"));
+        if (conteudo.getCasoClinico() == null) {
+            negar();
+        }
+        validarAcessoCaso(conteudo.getCasoClinico().getIdCaso());
     }
 
     private Usuario getUsuarioAutenticado() {

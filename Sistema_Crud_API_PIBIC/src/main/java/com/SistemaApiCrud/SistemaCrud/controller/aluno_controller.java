@@ -1,7 +1,9 @@
 package com.SistemaApiCrud.SistemaCrud.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.aluno_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.aluno_response_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_completo_DTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_response_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.desempenho_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.historico_aluno_DTO;
@@ -52,8 +54,8 @@ public class aluno_controller {
     }
 
     @GetMapping
-    public List<aluno_response_DTO> listar() {
-        return service.listar();
+    public Page<aluno_response_DTO> listar(@PageableDefault(size = 20, sort = "nome") Pageable pageable) {
+        return service.listar(pageable);
     }
 
     @GetMapping("/{id}")
@@ -63,25 +65,29 @@ public class aluno_controller {
     }
 
     @GetMapping("/{id}/casos-disponiveis")
-    public List<caso_clinico_response_DTO> listarCasosDisponiveis(@PathVariable @Min(1) Long id) {
+    public Page<caso_clinico_response_DTO> listarCasosDisponiveis(
+            @PathVariable @Min(1) Long id,
+            @PageableDefault(size = 20, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
         autorizacaoService.validarAcessoAluno(id);
         service.buscarPorId(id);
-        return casoService.listarPublicados();
+        return casoService.listarPublicados(pageable);
     }
 
     @GetMapping("/{id}/casos/{casoId}/completo")
-    public ResponseEntity<caso_clinico_completo_DTO> buscarCasoDisponivelCompleto(
+    public ResponseEntity<caso_clinico_aluno_DTO> buscarCasoDisponivelCompleto(
             @PathVariable @Min(1) Long id,
             @PathVariable @Min(1) Long casoId) {
         autorizacaoService.validarAcessoAluno(id);
         service.buscarPorId(id);
-        return ResponseEntity.ok(casoService.buscarCompletoPublicadoPorId(casoId));
+        return ResponseEntity.ok(casoService.buscarCompletoPublicadoPorId(casoId, id));
     }
 
     @GetMapping("/{id}/historico")
-    public ResponseEntity<historico_aluno_DTO> buscarHistorico(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<historico_aluno_DTO> buscarHistorico(
+            @PathVariable @Min(1) Long id,
+            @PageableDefault(size = 20, sort = "dataResposta", direction = Sort.Direction.DESC) Pageable pageable) {
         autorizacaoService.validarAcessoAluno(id);
-        return ResponseEntity.ok(respostaService.buscarHistorico(id));
+        return ResponseEntity.ok(respostaService.buscarHistorico(id, pageable));
     }
 
     @GetMapping("/{id}/desempenho")

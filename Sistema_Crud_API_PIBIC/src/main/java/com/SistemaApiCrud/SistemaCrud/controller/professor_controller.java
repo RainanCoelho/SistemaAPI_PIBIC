@@ -1,7 +1,9 @@
 package com.SistemaApiCrud.SistemaCrud.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -49,8 +51,8 @@ public class professor_controller {
     }
 
     @GetMapping
-    public List<professor_response_DTO> listar() {
-        return service.listar();
+    public Page<professor_response_DTO> listar(@PageableDefault(size = 20, sort = "nome") Pageable pageable) {
+        return service.listar(pageable);
     }
 
     @GetMapping("/{id}")
@@ -60,9 +62,11 @@ public class professor_controller {
     }
 
     @GetMapping("/{id}/casos")
-    public List<caso_clinico_response_DTO> listarCasos(@PathVariable @Min(1) Long id) {
+    public Page<caso_clinico_response_DTO> listarCasos(
+            @PathVariable @Min(1) Long id,
+            @PageableDefault(size = 20, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
         autorizacaoService.validarAcessoProfessor(id);
-        return casoService.listarPorProfessor(id);
+        return casoService.listarPorProfessor(id, pageable);
     }
 
     @GetMapping("/{id}/relatorio-desempenho")

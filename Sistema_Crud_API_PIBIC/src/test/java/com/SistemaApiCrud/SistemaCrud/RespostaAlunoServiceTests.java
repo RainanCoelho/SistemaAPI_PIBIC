@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.tentativa_caso_repository;
 import com.SistemaApiCrud.SistemaCrud.service.caso_clinico_service;
 import com.SistemaApiCrud.SistemaCrud.service.JwtService;
 import com.SistemaApiCrud.SistemaCrud.service.resposta_aluno_service;
@@ -76,6 +78,9 @@ class RespostaAlunoServiceTests {
     @Autowired
     private usuario_repository usuarioRepository;
 
+    @Autowired
+    private tentativa_caso_repository tentativaRepository;
+
     @Test
     void deveResponderCasoPublicadoECalcularResultado() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Ana", "ana@email.com", "Medicina", "4"));
@@ -85,6 +90,7 @@ class RespostaAlunoServiceTests {
         responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
                 new resposta_pergunta_request_DTO(pergunta.getId(), "A")));
 
+        iniciarTentativa(aluno, caso);
         resultado_caso_DTO resultado = respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request);
 
         assertThat(resultado.getTotalRespondidas()).isEqualTo(1);
@@ -92,6 +98,10 @@ class RespostaAlunoServiceTests {
         assertThat(resultado.getNota()).isEqualTo(100.0);
         assertThat(resultado.getRespostas()).hasSize(1);
         assertThat(resultado.getRespostas().get(0).getCorreta()).isTrue();
+
+        assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("O aluno ja respondeu este caso clinico");
     }
 
     @Test
@@ -109,6 +119,32 @@ class RespostaAlunoServiceTests {
     }
 
     @Test
+    void deveExigirTodasAsPerguntasSemDuplicidade() {
+        Aluno aluno = alunoRepository.save(new Aluno(null, "Diego", "diego@email.com", "Medicina", "7"));
+        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        pergunta primeira = criarPergunta(caso, "A");
+        pergunta segunda = criarPergunta(caso, "B");
+
+        responder_caso_request_DTO incompleta = new responder_caso_request_DTO(List.of(
+                new resposta_pergunta_request_DTO(primeira.getId(), "A")));
+
+        iniciarTentativa(aluno, caso);
+        assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), incompleta))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
+                .hasMessage("Todas as perguntas do caso devem ser respondidas exatamente uma vez");
+
+        responder_caso_request_DTO duplicada = new responder_caso_request_DTO(List.of(
+                new resposta_pergunta_request_DTO(primeira.getId(), "A"),
+                new resposta_pergunta_request_DTO(primeira.getId(), "A")));
+
+        assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), duplicada))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
+                .hasMessage("Cada pergunta deve ser respondida uma unica vez");
+
+        assertThat(segunda.getId()).isNotNull();
+    }
+
+    @Test
     void deveCorrigirRespostaUsandoAlternativasSeparadas() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Clara", "clara@email.com", "Medicina", "6"));
         casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
@@ -121,6 +157,7 @@ class RespostaAlunoServiceTests {
         responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
                 new resposta_pergunta_request_DTO(pergunta.getId(), "Conduta correta")));
 
+        iniciarTentativa(aluno, caso);
         resultado_caso_DTO resultado = respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request);
 
         assertThat(resultado.getTotalCorretas()).isEqualTo(1);
@@ -131,9 +168,50 @@ class RespostaAlunoServiceTests {
     void naoDeveExibirCasoCompletoNaoPublicadoParaAluno() {
         casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
 
-        assertThatThrownBy(() -> casoService.buscarCompletoPublicadoPorId(caso.getIdCaso()))
+        assertThatThrownBy(() -> casoService.buscarCompletoPublicadoPorId(caso.getIdCaso(), 1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("O caso clinico ainda nao esta publicado");
+    }
+
+    @Test
+    void naoDeveAceitarRespostasDepoisDoPrazoDoCaso() {
+        Aluno aluno = alunoRepository.save(new Aluno(null, "Elisa", "elisa@email.com", "Medicina", "8"));
+        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        pergunta pergunta = criarPergunta(caso, "A");
+        iniciarTentativa(aluno, caso);
+
+        var tentativa = tentativaRepository
+                .findByAlunoIdAlunoAndCasoClinicoIdCaso(aluno.getIdAluno(), caso.getIdCaso())
+                .orElseThrow();
+        tentativa.setDataInicio(Instant.now().minusSeconds(120));
+        tentativa.setDataLimite(Instant.now().minusSeconds(1));
+        tentativaRepository.saveAndFlush(tentativa);
+
+        responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
+                new resposta_pergunta_request_DTO(pergunta.getId(), "A")));
+
+        assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("O tempo limite para responder o caso clinico expirou");
+    }
+
+    @Test
+    void recarregarCasoNaoDeveReiniciarPrazo() {
+        Aluno aluno = alunoRepository.save(new Aluno(null, "Fabio", "fabio@email.com", "Medicina", "9"));
+        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        criarPergunta(caso, "A");
+
+        var primeiraAbertura = casoService.buscarCompletoPublicadoPorId(
+                caso.getIdCaso(),
+                aluno.getIdAluno());
+        var segundaAbertura = casoService.buscarCompletoPublicadoPorId(
+                caso.getIdCaso(),
+                aluno.getIdAluno());
+
+        assertThat(segundaAbertura.getInicioTentativa()).isEqualTo(primeiraAbertura.getInicioTentativa());
+        assertThat(segundaAbertura.getPrazoFinal()).isEqualTo(primeiraAbertura.getPrazoFinal());
+        assertThat(segundaAbertura.getSegundosRestantes())
+                .isLessThanOrEqualTo(primeiraAbertura.getSegundosRestantes());
     }
 
     @Test
@@ -210,6 +288,7 @@ class RespostaAlunoServiceTests {
         caso.setEstilo("Multipla escolha");
         caso.setEspecialidade("Pneumologia");
         caso.setStatus(status);
+        caso.setTempoLimiteMinutos(60);
 
         return casoRepository.save(caso);
     }
@@ -226,8 +305,11 @@ class RespostaAlunoServiceTests {
         pergunta.setResposta(gabarito);
         pergunta.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
         pergunta.setGabarito(gabarito);
-        pergunta.setTempoEsperado("5 minutos");
 
         return perguntaRepository.save(pergunta);
+    }
+
+    private void iniciarTentativa(Aluno aluno, casos_clinicos caso) {
+        casoService.buscarCompletoPublicadoPorId(caso.getIdCaso(), aluno.getIdAluno());
     }
 }

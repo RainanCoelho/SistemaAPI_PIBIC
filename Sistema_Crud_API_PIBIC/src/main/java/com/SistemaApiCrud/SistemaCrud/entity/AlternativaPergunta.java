@@ -27,12 +27,15 @@ public class AlternativaPergunta {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "fk_id_pergunta")
+    @JoinColumn(name = "fk_id_pergunta", nullable = false)
     private pergunta pergunta;
 
+    @Column(nullable = false, length = 10)
     private String letra;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String texto;
 
+    @Column(nullable = false)
     private Boolean correta;
 }

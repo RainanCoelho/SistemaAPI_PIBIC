@@ -1,6 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.DTO;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,5 +15,5 @@ public class historico_aluno_DTO {
 
     private Long idAluno;
 
-    private List<resposta_aluno_DTO> respostas;
+    private Page<resposta_aluno_DTO> respostas;
 }

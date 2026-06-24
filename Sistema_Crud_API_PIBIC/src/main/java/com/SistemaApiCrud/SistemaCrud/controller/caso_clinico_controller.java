@@ -32,6 +32,7 @@ import com.SistemaApiCrud.SistemaCrud.service.pergunta_service;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 @Validated
 @RestController
@@ -55,7 +56,9 @@ public class caso_clinico_controller {
     public Page<caso_clinico_response_DTO> listar(
             @RequestParam(required = false) StatusCasoClinico status,
             @RequestParam(required = false) @Min(1) Long idProfessor,
-            @RequestParam(required = false) String termo,
+            @RequestParam(required = false)
+            @Size(max = 100, message = "O termo deve ter no maximo 100 caracteres")
+            String termo,
             @PageableDefault(size = 20, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
         Long filtroProfessor = autorizacaoService.resolverFiltroProfessor(idProfessor);
         return service.listarPaginado(status, filtroProfessor, termo, pageable);
@@ -74,9 +77,11 @@ public class caso_clinico_controller {
     }
 
     @GetMapping("/{casoId}/perguntas")
-    public List<pergunta_response_DTO> listarPerguntas(@PathVariable @Min(1) Long casoId) {
+    public Page<pergunta_response_DTO> listarPerguntas(
+            @PathVariable @Min(1) Long casoId,
+            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
         autorizacaoService.validarAcessoCaso(casoId);
-        return perguntaService.listarPorCaso(casoId);
+        return perguntaService.listarPorCaso(casoId, pageable);
     }
 
     @PostMapping

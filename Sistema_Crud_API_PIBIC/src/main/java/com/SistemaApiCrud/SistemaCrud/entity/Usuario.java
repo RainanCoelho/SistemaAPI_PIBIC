@@ -29,18 +29,21 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String senha;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30)
     private PapelUsuario role;
 
     @Column(nullable = false)
     private Boolean ativo = true;
+
+    @Column(name = "versao_credencial", nullable = false)
+    private Long versaoCredencial = 0L;
 
     @OneToOne
     @JoinColumn(name = "fk_id_aluno", unique = true)

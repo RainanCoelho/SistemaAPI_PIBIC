@@ -18,10 +18,11 @@ import lombok.Setter;
 public class usuario_request_DTO {
 
     @NotBlank(message = "O usuario e obrigatorio")
+    @Size(min = 3, max = 100, message = "O usuario deve ter entre 3 e 100 caracteres")
     private String username;
 
     @NotBlank(message = "A senha e obrigatoria")
-    @Size(min = 6, message = "A senha deve ter pelo menos 6 caracteres")
+    @Size(min = 12, max = 72, message = "A senha deve ter entre 12 e 72 caracteres")
     private String senha;
 
     @NotNull(message = "A role e obrigatoria")

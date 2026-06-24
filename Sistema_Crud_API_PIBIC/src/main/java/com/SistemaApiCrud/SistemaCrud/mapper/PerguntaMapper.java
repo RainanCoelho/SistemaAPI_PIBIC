@@ -28,8 +28,7 @@ public class PerguntaMapper {
                 alternativas,
                 pergunta.getResposta(),
                 pergunta.getTipo(),
-                pergunta.getGabarito(),
-                pergunta.getTempoEsperado());
+                pergunta.getGabarito());
     }
 
     public pergunta toEntity(pergunta_request_DTO dto, casos_clinicos caso) {
@@ -52,6 +51,5 @@ public class PerguntaMapper {
         pergunta.setResposta(dto.getResposta());
         pergunta.setTipo(dto.getTipo());
         pergunta.setGabarito(dto.getGabarito());
-        pergunta.setTempoEsperado(dto.getTempoEsperado());
     }
 }

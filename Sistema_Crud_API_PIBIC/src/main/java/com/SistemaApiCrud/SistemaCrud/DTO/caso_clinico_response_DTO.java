@@ -41,4 +41,6 @@ public class caso_clinico_response_DTO {
     private String objetivoAprendizagem;
 
     private NivelDificuldade nivelDificuldade;
+
+    private Integer tempoLimiteMinutos;
 }

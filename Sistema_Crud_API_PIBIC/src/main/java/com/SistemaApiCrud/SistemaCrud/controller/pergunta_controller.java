@@ -1,7 +1,8 @@
 package com.SistemaApiCrud.SistemaCrud.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -36,12 +37,13 @@ public class pergunta_controller {
     }
 
     @GetMapping
-    public List<pergunta_response_DTO> listar() {
+    public Page<pergunta_response_DTO> listar(
+            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
         if (autorizacaoService.isAdmin()) {
-            return service.listar();
+            return service.listar(pageable);
         }
 
-        return service.listarPorProfessor(autorizacaoService.getIdProfessorAutenticado());
+        return service.listarPorProfessor(autorizacaoService.getIdProfessorAutenticado(), pageable);
     }
 
     @GetMapping("/{id}")
@@ -51,9 +53,11 @@ public class pergunta_controller {
     }
 
     @GetMapping("/caso/{casoId}")
-    public List<pergunta_response_DTO> listarPorCaso(@PathVariable @Min(1) Long casoId) {
+    public Page<pergunta_response_DTO> listarPorCaso(
+            @PathVariable @Min(1) Long casoId,
+            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
         autorizacaoService.validarAcessoCaso(casoId);
-        return service.listarPorCaso(casoId);
+        return service.listarPorCaso(casoId, pageable);
     }
 
     @PostMapping

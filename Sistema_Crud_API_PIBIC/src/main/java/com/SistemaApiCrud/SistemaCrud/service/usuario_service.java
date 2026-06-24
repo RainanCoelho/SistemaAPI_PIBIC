@@ -1,9 +1,10 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.usuario_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.usuario_response_DTO;
@@ -40,11 +41,8 @@ public class usuario_service {
         this.mapper = mapper;
     }
 
-    public List<usuario_response_DTO> listar() {
-        return repository.findAll()
-                .stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<usuario_response_DTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toResponse);
     }
 
     public usuario_response_DTO buscarPorId(Long id) {
@@ -71,6 +69,7 @@ public class usuario_service {
         return mapper.toResponse(repository.save(usuario));
     }
 
+    @Transactional
     public usuario_response_DTO atualizar(Long id, usuario_request_DTO dto) {
         Usuario usuario = buscarEntityPorId(id);
 
@@ -80,18 +79,27 @@ public class usuario_service {
                     throw new BusinessException("Ja existe um usuario cadastrado com esse nome de acesso");
                 });
 
+        usuario.setVersaoCredencial(proximaVersao(usuario));
         return mapper.toResponse(repository.save(aplicarDados(dto, usuario)));
     }
 
+    @Transactional
     public usuario_response_DTO ativar(Long id) {
         Usuario usuario = buscarEntityPorId(id);
-        usuario.setAtivo(true);
+        if (!Boolean.TRUE.equals(usuario.getAtivo())) {
+            usuario.setAtivo(true);
+            usuario.setVersaoCredencial(proximaVersao(usuario));
+        }
         return mapper.toResponse(repository.save(usuario));
     }
 
+    @Transactional
     public usuario_response_DTO desativar(Long id) {
         Usuario usuario = buscarEntityPorId(id);
-        usuario.setAtivo(false);
+        if (Boolean.TRUE.equals(usuario.getAtivo())) {
+            usuario.setAtivo(false);
+            usuario.setVersaoCredencial(proximaVersao(usuario));
+        }
         return mapper.toResponse(repository.save(usuario));
     }
 
@@ -102,6 +110,10 @@ public class usuario_service {
         usuario.setAtivo(dto.getAtivo() == null || dto.getAtivo());
         vincularPerfil(dto, usuario);
         return usuario;
+    }
+
+    private long proximaVersao(Usuario usuario) {
+        return usuario.getVersaoCredencial() == null ? 1L : usuario.getVersaoCredencial() + 1L;
     }
 
     private void vincularPerfil(usuario_request_DTO dto, Usuario usuario) {

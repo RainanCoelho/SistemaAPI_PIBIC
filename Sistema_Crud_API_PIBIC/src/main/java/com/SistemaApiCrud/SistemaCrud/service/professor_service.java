@@ -1,7 +1,7 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,11 +28,8 @@ public class professor_service {
         this.usuarioService = usuarioService;
     }
 
-    public List<professor_response_DTO> listar() {
-        return repository.findAll()
-                .stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<professor_response_DTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toResponse);
     }
 
     public professor_response_DTO buscarPorId(Long id) {

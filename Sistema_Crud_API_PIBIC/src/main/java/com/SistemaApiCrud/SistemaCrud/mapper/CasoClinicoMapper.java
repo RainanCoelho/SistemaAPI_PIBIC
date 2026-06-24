@@ -26,7 +26,8 @@ public class CasoClinicoMapper {
                 caso.getDataCriacao(),
                 caso.getDataAtualizacao(),
                 caso.getObjetivoAprendizagem(),
-                caso.getNivelDificuldade());
+                caso.getNivelDificuldade(),
+                caso.getTempoLimiteMinutos());
     }
 
     public casos_clinicos toEntity(caso_clinico_request_DTO dto, Professor professor) {
@@ -49,5 +50,10 @@ public class CasoClinicoMapper {
         caso.setStatus(dto.getStatus());
         caso.setObjetivoAprendizagem(dto.getObjetivoAprendizagem());
         caso.setNivelDificuldade(dto.getNivelDificuldade());
+        if (dto.getTempoLimiteMinutos() != null) {
+            caso.setTempoLimiteMinutos(dto.getTempoLimiteMinutos());
+        } else if (caso.getTempoLimiteMinutos() == null) {
+            caso.setTempoLimiteMinutos(casos_clinicos.TEMPO_LIMITE_PADRAO_MINUTOS);
+        }
     }
 }

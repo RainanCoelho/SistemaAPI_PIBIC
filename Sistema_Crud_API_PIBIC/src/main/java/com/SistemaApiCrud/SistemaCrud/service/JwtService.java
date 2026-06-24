@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 
 @Service
 public class JwtService {
@@ -27,13 +28,22 @@ public class JwtService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${app.security.jwt.secret:dev-secret-change-this-value}")
+    @Value("${app.security.jwt.secret}")
     private String secret;
 
     @Value("${app.security.jwt.expiration-minutes:120}")
     private long expirationMinutes;
 
     public String gerarToken(Authentication authentication) {
+        return gerarToken(authentication, 0L);
+    }
+
+    public String gerarToken(Authentication authentication, Usuario usuario) {
+        long versaoCredencial = usuario.getVersaoCredencial() == null ? 0L : usuario.getVersaoCredencial();
+        return gerarToken(authentication, versaoCredencial);
+    }
+
+    private String gerarToken(Authentication authentication, long versaoCredencial) {
         Instant agora = Instant.now();
         Instant expiraEm = agora.plus(expirationMinutes, ChronoUnit.MINUTES);
 
@@ -50,6 +60,7 @@ public class JwtService {
         Map<String, Object> payload = Map.of(
                 "sub", authentication.getName(),
                 "roles", roles,
+                "ver", versaoCredencial,
                 "iat", agora.getEpochSecond(),
                 "exp", expiraEm.getEpochSecond());
 
@@ -78,6 +89,34 @@ public class JwtService {
                 .toList();
 
         return new UsernamePasswordAuthenticationToken(username, null, authorities);
+    }
+
+    public Authentication criarAuthentication(String token, Usuario usuario) {
+        String username = getUsername(token);
+        if (!usuario.getUsername().equals(username)) {
+            throw new IllegalArgumentException("Token invalido");
+        }
+
+        return new UsernamePasswordAuthenticationToken(
+                usuario.getUsername(),
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getRole().name())));
+    }
+
+    public String getUsername(String token) {
+        Object subject = lerClaims(token).get("sub");
+        if (subject instanceof String username && !username.isBlank()) {
+            return username;
+        }
+        throw new IllegalArgumentException("Token sem usuario");
+    }
+
+    public long getVersaoCredencial(String token) {
+        Object versao = lerClaims(token).get("ver");
+        if (versao instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
     }
 
     public Instant getExpiraEm(String token) {

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
@@ -26,9 +27,11 @@ public class paciente_DTO {
     private Long idCaso;
 
     @NotBlank(message = "O nome do paciente e obrigatorio")
+    @Size(max = 150, message = "O nome deve ter no maximo 150 caracteres")
     private String nome;
 
     @NotBlank(message = "A profissao e obrigatoria")
+    @Size(max = 120, message = "A profissao deve ter no maximo 120 caracteres")
     private String profissao;
 
     @NotNull(message = "O sexo e obrigatorio")
@@ -43,8 +46,10 @@ public class paciente_DTO {
     private EstadoCivil estadoCivil;
 
     @NotBlank(message = "A altura e obrigatoria")
+    @Size(max = 20, message = "A altura deve ter no maximo 20 caracteres")
     private String altura;
 
     @NotBlank(message = "O peso e obrigatorio")
+    @Size(max = 20, message = "O peso deve ter no maximo 20 caracteres")
     private String peso;
 }

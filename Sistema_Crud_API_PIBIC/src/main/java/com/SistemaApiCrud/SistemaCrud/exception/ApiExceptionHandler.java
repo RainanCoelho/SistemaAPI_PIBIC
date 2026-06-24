@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -33,6 +35,13 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Map<String, String> tratarAutenticacao() {
         return Map.of("erro", "Credenciais invalidas");
+    }
+
+    @ExceptionHandler(MuitasTentativasLoginException.class)
+    public ResponseEntity<Map<String, String>> tratarMuitasTentativas(MuitasTentativasLoginException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(Map.of("erro", ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

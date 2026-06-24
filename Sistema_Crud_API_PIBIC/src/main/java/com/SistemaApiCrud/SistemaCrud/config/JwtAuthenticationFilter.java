@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.SistemaApiCrud.SistemaCrud.service.JwtService;
+import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,9 +18,11 @@ import jakarta.servlet.http.HttpServletResponse;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final usuario_repository usuarioRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, usuario_repository usuarioRepository) {
         this.jwtService = jwtService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Override
@@ -34,9 +37,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = authorization.substring(7);
 
-            if (jwtService.isTokenValido(token)) {
-                var authentication = jwtService.criarAuthentication(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            try {
+                if (jwtService.isTokenValido(token)) {
+                    usuarioRepository.findByUsername(jwtService.getUsername(token))
+                            .filter(usuario -> Boolean.TRUE.equals(usuario.getAtivo()))
+                            .filter(usuario -> {
+                                long versaoAtual = usuario.getVersaoCredencial() == null
+                                        ? 0L
+                                        : usuario.getVersaoCredencial();
+                                return versaoAtual == jwtService.getVersaoCredencial(token);
+                            })
+                            .ifPresent(usuario -> {
+                                var authentication = jwtService.criarAuthentication(token, usuario);
+                                SecurityContextHolder.getContext().setAuthentication(authentication);
+                            });
+                }
+            } catch (RuntimeException ignored) {
+                SecurityContextHolder.clearContext();
             }
         }
 

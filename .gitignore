@@ -5,3 +5,6 @@ target/
 *.iml
 out/
 build/
+.env
+.env.*
+!.env.example

@@ -2,6 +2,7 @@ package com.SistemaApiCrud.SistemaCrud.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
 
 @Component
+@Profile({"dev", "test"})
 public class DataInitializer implements CommandLineRunner {
 
     private final usuario_repository usuarioRepository;
@@ -21,22 +23,22 @@ public class DataInitializer implements CommandLineRunner {
     private final professor_repository professorRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.security.admin.username:admin}")
+    @Value("${app.security.admin.username}")
     private String adminUsername;
 
-    @Value("${app.security.admin.password:admin123}")
+    @Value("${app.security.admin.password}")
     private String adminPassword;
 
-    @Value("${app.security.professor.username:professor}")
+    @Value("${app.security.professor.username}")
     private String professorUsername;
 
-    @Value("${app.security.professor.password:professor123}")
+    @Value("${app.security.professor.password}")
     private String professorPassword;
 
-    @Value("${app.security.aluno.username:aluno}")
+    @Value("${app.security.aluno.username}")
     private String alunoUsername;
 
-    @Value("${app.security.aluno.password:aluno123}")
+    @Value("${app.security.aluno.password}")
     private String alunoPassword;
 
     public DataInitializer(

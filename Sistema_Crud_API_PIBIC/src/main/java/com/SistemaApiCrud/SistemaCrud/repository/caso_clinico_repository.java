@@ -2,6 +2,8 @@ package com.SistemaApiCrud.SistemaCrud.repository;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -13,4 +15,8 @@ public interface caso_clinico_repository extends JpaRepository<casos_clinicos, L
     List<casos_clinicos> findByProfessorId(Long idProfessor);
 
     List<casos_clinicos> findByStatus(StatusCasoClinico status);
+
+    Page<casos_clinicos> findByProfessorId(Long idProfessor, Pageable pageable);
+
+    Page<casos_clinicos> findByStatus(StatusCasoClinico status, Pageable pageable);
 }
