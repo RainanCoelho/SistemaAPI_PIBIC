@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class GroqConfig {
 
+
     @Bean
     public OkHttpClient okHttpClient(){
         return new OkHttpClient();
