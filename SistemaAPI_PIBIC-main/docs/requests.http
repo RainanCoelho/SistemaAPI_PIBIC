@@ -1,0 +1,147 @@
+@baseUrl = http://localhost:8080
+@adminUser = admin
+@adminPass = admin-dev-123
+@professorUser = professor
+@professorPass = professor-dev-123
+@alunoUser = aluno
+@alunoPass = aluno-dev-123
+
+### OpenAPI
+GET {{baseUrl}}/openapi.yaml
+
+### Login admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{adminUser}}",
+  "password": "{{adminPass}}"
+}
+
+### Login professor
+# @name loginProfessor
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{professorUser}}",
+  "password": "{{professorPass}}"
+}
+
+### Login aluno
+# @name loginAluno
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{alunoUser}}",
+  "password": "{{alunoPass}}"
+}
+
+### Listar usuarios de acesso
+GET {{baseUrl}}/usuarios
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### Criar usuario com role e senha BCrypt
+POST {{baseUrl}}/usuarios
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "username": "novo-professor",
+  "senha": "senha-segura-123",
+  "role": "ADMIN",
+  "ativo": true
+}
+
+### Criar professor
+POST {{baseUrl}}/professores
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "nome": "Dra. Silva",
+  "email": "silva@email.com",
+  "materia": "Clinica Medica"
+}
+
+### Criar aluno
+POST {{baseUrl}}/alunos
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "nome": "Ana",
+  "email": "ana@email.com",
+  "curso": "Medicina",
+  "periodo": "4"
+}
+
+### Criar caso clinico
+POST {{baseUrl}}/casos
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "idProfessor": 1,
+  "titulo": "Caso respiratorio",
+  "dificuldade": "MEDIA",
+  "disciplina": "Clinica Medica",
+  "areaSaude": "Medicina",
+  "estilo": "Multipla escolha",
+  "especialidade": "Pneumologia",
+  "objetivoAprendizagem": "Avaliar conduta inicial",
+  "nivelDificuldade": "MEDIA",
+  "tempoLimiteMinutos": 90
+}
+
+### Criar pergunta com alternativas flexiveis
+POST {{baseUrl}}/casos/1/perguntas
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "texto": "Qual a melhor conduta inicial?",
+  "tipo": "MULTIPLA_ESCOLHA",
+  "gabarito": "A",
+  "resposta": "A",
+  "alternativas": [
+    { "letra": "A", "texto": "Conduta correta", "correta": true },
+    { "letra": "B", "texto": "Conduta inadequada", "correta": false }
+  ]
+}
+
+### Publicar caso
+PATCH {{baseUrl}}/casos/1/publicar
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+
+### Filtrar casos como professor
+GET {{baseUrl}}/casos?status=PUBLICADO&termo=respiratorio&page=0&size=10
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+
+### Listar casos disponiveis para aluno
+GET {{baseUrl}}/alunos/1/casos-disponiveis
+Authorization: Bearer {{loginAluno.response.body.$.token}}
+
+### Ver caso publicado completo como aluno
+GET {{baseUrl}}/alunos/1/casos/1/completo
+Authorization: Bearer {{loginAluno.response.body.$.token}}
+
+### Responder caso
+POST {{baseUrl}}/alunos/1/casos/1/responder
+Authorization: Bearer {{loginAluno.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "respostas": [
+    {
+      "idPergunta": 1,
+      "respostaMarcada": "A"
+    }
+  ]
+}
+
+### Desempenho do aluno
+GET {{baseUrl}}/alunos/1/desempenho
+Authorization: Bearer {{loginAluno.response.body.$.token}}

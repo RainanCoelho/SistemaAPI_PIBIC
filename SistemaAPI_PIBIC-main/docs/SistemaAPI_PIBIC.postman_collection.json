@@ -1,0 +1,196 @@
+{
+  "info": {
+    "name": "SistemaAPI PIBIC",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "username",
+      "value": "admin"
+    },
+    {
+      "key": "password",
+      "value": "admin-dev-123"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "OpenAPI",
+      "auth": {
+        "type": "noauth"
+      },
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/openapi.yaml"
+      }
+    },
+    {
+      "name": "Login",
+      "auth": {
+        "type": "noauth"
+      },
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Listar usuarios",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/usuarios"
+      }
+    },
+    {
+      "name": "Criar usuario",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"novo-admin\",\n  \"senha\": \"senha-segura-123\",\n  \"role\": \"ADMIN\",\n  \"ativo\": true\n}"
+        },
+        "url": "{{baseUrl}}/usuarios"
+      }
+    },
+    {
+      "name": "Criar professor",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Dra. Silva\",\n  \"email\": \"silva@email.com\",\n  \"materia\": \"Clinica Medica\"\n}"
+        },
+        "url": "{{baseUrl}}/professores"
+      }
+    },
+    {
+      "name": "Criar aluno",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Ana\",\n  \"email\": \"ana@email.com\",\n  \"curso\": \"Medicina\",\n  \"periodo\": \"4\"\n}"
+        },
+        "url": "{{baseUrl}}/alunos"
+      }
+    },
+    {
+      "name": "Criar caso clinico",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idProfessor\": 1,\n  \"titulo\": \"Caso respiratorio\",\n  \"dificuldade\": \"MEDIA\",\n  \"disciplina\": \"Clinica Medica\",\n  \"areaSaude\": \"Medicina\",\n  \"estilo\": \"Multipla escolha\",\n  \"especialidade\": \"Pneumologia\",\n  \"objetivoAprendizagem\": \"Avaliar conduta inicial\",\n  \"nivelDificuldade\": \"MEDIA\",\n  \"tempoLimiteMinutos\": 90\n}"
+        },
+        "url": "{{baseUrl}}/casos"
+      }
+    },
+    {
+      "name": "Criar pergunta",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texto\": \"Qual a melhor conduta inicial?\",\n  \"tipo\": \"MULTIPLA_ESCOLHA\",\n  \"gabarito\": \"A\",\n  \"resposta\": \"A\",\n  \"alternativas\": [\n    { \"letra\": \"A\", \"texto\": \"Conduta correta\", \"correta\": true },\n    { \"letra\": \"B\", \"texto\": \"Conduta inadequada\", \"correta\": false }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/casos/1/perguntas"
+      }
+    },
+    {
+      "name": "Publicar caso",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/casos/1/publicar"
+      }
+    },
+    {
+      "name": "Casos disponiveis do aluno",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/alunos/1/casos-disponiveis"
+      }
+    },
+    {
+      "name": "Responder caso",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"respostas\": [\n    {\n      \"idPergunta\": 1,\n      \"respostaMarcada\": \"A\"\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/alunos/1/casos/1/responder"
+      }
+    },
+    {
+      "name": "Desempenho do aluno",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/alunos/1/desempenho"
+      }
+    }
+  ]
+}

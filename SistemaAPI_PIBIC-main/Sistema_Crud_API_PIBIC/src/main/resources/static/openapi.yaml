@@ -1,0 +1,713 @@
+openapi: 3.0.3
+info:
+  title: SistemaAPI PIBIC
+  version: 1.0.0
+  description: API REST para gerenciamento e resolucao de casos clinicos academicos.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      summary: Autentica usuario e retorna token JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Token JWT gerado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Credenciais invalidas
+        "429":
+          description: Muitas tentativas de login
+  /alunos:
+    get:
+      summary: Lista alunos
+      responses:
+        "200":
+          description: Alunos encontrados
+    post:
+      summary: Cadastra aluno
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlunoRequest"
+      responses:
+        "201":
+          description: Aluno criado
+  /usuarios:
+    get:
+      summary: Lista usuarios de acesso
+      responses:
+        "200":
+          description: Usuarios encontrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UsuarioResponse"
+    post:
+      summary: Cadastra usuario com senha BCrypt e role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioRequest"
+      responses:
+        "201":
+          description: Usuario criado
+  /usuarios/{id}:
+    get:
+      summary: Busca usuario por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Usuario encontrado
+    put:
+      summary: Atualiza usuario, senha e role
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioRequest"
+      responses:
+        "200":
+          description: Usuario atualizado
+  /usuarios/{id}/ativar:
+    patch:
+      summary: Ativa usuario
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Usuario ativado
+  /usuarios/{id}/desativar:
+    patch:
+      summary: Desativa usuario
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Usuario desativado
+  /alunos/{id}:
+    get:
+      summary: Busca aluno por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Aluno encontrado
+        "404":
+          description: Aluno nao encontrado
+    put:
+      summary: Atualiza aluno
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Aluno atualizado
+    delete:
+      summary: Remove aluno
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Aluno removido
+  /alunos/{id}/casos-disponiveis:
+    get:
+      summary: Lista casos publicados disponiveis para o aluno
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Casos publicados
+  /alunos/{id}/casos/{casoId}/completo:
+    get:
+      summary: Abre o caso publicado e inicia ou retoma a tentativa do aluno
+      parameters:
+        - $ref: "#/components/parameters/id"
+        - $ref: "#/components/parameters/casoId"
+      responses:
+        "200":
+          description: Caso completo publicado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoAluno"
+        "400":
+          description: Caso ainda nao publicado
+  /alunos/{id}/casos/{casoId}/responder:
+    post:
+      summary: Registra respostas de um aluno para um caso publicado
+      parameters:
+        - $ref: "#/components/parameters/id"
+        - $ref: "#/components/parameters/casoId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponderCasoRequest"
+      responses:
+        "201":
+          description: Resultado calculado
+  /alunos/{id}/historico:
+    get:
+      summary: Busca historico de respostas do aluno
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Historico do aluno
+  /alunos/{id}/desempenho:
+    get:
+      summary: Busca desempenho consolidado do aluno
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Desempenho do aluno
+  /professores:
+    get:
+      summary: Lista professores
+      responses:
+        "200":
+          description: Professores encontrados
+    post:
+      summary: Cadastra professor
+      responses:
+        "201":
+          description: Professor criado
+  /professores/{id}:
+    get:
+      summary: Busca professor por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Professor encontrado
+    put:
+      summary: Atualiza professor
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Professor atualizado
+    delete:
+      summary: Remove professor
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Professor removido
+  /professores/{id}/casos:
+    get:
+      summary: Lista casos de um professor
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Casos do professor
+  /professores/{id}/relatorio-desempenho:
+    get:
+      summary: Gera relatorio de desempenho do professor
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Relatorio gerado
+  /casos:
+    get:
+      summary: Lista casos clinicos com paginacao e filtros
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [RASCUNHO, PUBLICADO, ARQUIVADO]
+        - name: idProfessor
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: termo
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          schema:
+            type: string
+            example: dataCriacao,desc
+      responses:
+        "200":
+          description: Casos encontrados
+    post:
+      summary: Cria caso clinico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasoClinicoRequest"
+      responses:
+        "201":
+          description: Caso criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoResponse"
+  /casos/{id}:
+    get:
+      summary: Busca caso por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Caso encontrado
+    put:
+      summary: Atualiza caso
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasoClinicoRequest"
+      responses:
+        "200":
+          description: Caso atualizado
+    delete:
+      summary: Remove caso
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Caso removido
+  /casos/{id}/completo:
+    get:
+      summary: Busca caso completo com pacientes, conteudos e perguntas
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Caso completo
+  /casos/{id}/publicar:
+    patch:
+      summary: Publica caso clinico
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Caso publicado
+  /casos/{casoId}/perguntas:
+    get:
+      summary: Lista perguntas de um caso
+      parameters:
+        - $ref: "#/components/parameters/casoId"
+      responses:
+        "200":
+          description: Perguntas encontradas
+    post:
+      summary: Cria pergunta vinculada ao caso
+      parameters:
+        - $ref: "#/components/parameters/casoId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerguntaRequest"
+      responses:
+        "201":
+          description: Pergunta criada
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    casoId:
+      name: casoId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          maxLength: 100
+        password:
+          type: string
+          format: password
+          maxLength: 72
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        tipo:
+          type: string
+          example: Bearer
+        expiraEm:
+          type: string
+          format: date-time
+        idUsuario:
+          type: integer
+          format: int64
+        username:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, PROFESSOR, ALUNO]
+        idAluno:
+          type: integer
+          format: int64
+          nullable: true
+        idProfessor:
+          type: integer
+          format: int64
+          nullable: true
+    UsuarioRequest:
+      type: object
+      required:
+        - username
+        - senha
+        - role
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 100
+        senha:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 72
+        role:
+          type: string
+          enum: [ADMIN, PROFESSOR, ALUNO]
+        ativo:
+          type: boolean
+        idAluno:
+          type: integer
+          format: int64
+          nullable: true
+          description: Obrigatorio para usuarios com role ALUNO.
+        idProfessor:
+          type: integer
+          format: int64
+          nullable: true
+          description: Obrigatorio para usuarios com role PROFESSOR.
+    UsuarioResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, PROFESSOR, ALUNO]
+        ativo:
+          type: boolean
+        idAluno:
+          type: integer
+          format: int64
+          nullable: true
+        idProfessor:
+          type: integer
+          format: int64
+          nullable: true
+    AlunoRequest:
+      type: object
+      required:
+        - nome
+        - email
+        - curso
+        - periodo
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        curso:
+          type: string
+          maxLength: 120
+        periodo:
+          type: string
+          maxLength: 20
+    AlunoResponse:
+      type: object
+      properties:
+        idAluno:
+          type: integer
+          format: int64
+        nome:
+          type: string
+        email:
+          type: string
+        curso:
+          type: string
+        periodo:
+          type: string
+    CasoClinicoRequest:
+      type: object
+      required:
+        - titulo
+        - dificuldade
+        - disciplina
+        - areaSaude
+        - estilo
+        - especialidade
+      properties:
+        idProfessor:
+          type: integer
+          format: int64
+          nullable: true
+        titulo:
+          type: string
+          maxLength: 200
+        dificuldade:
+          type: string
+          maxLength: 30
+        disciplina:
+          type: string
+          maxLength: 120
+        areaSaude:
+          type: string
+          maxLength: 120
+        estilo:
+          type: string
+          maxLength: 60
+        especialidade:
+          type: string
+          maxLength: 120
+        status:
+          type: string
+          enum: [RASCUNHO, PUBLICADO, ARQUIVADO]
+        objetivoAprendizagem:
+          type: string
+        nivelDificuldade:
+          type: string
+          enum: [BAIXA, MEDIA, ALTA]
+        tempoLimiteMinutos:
+          type: integer
+          minimum: 15
+          maximum: 480
+          default: 60
+          description: Tempo total para responder o caso completo.
+    CasoClinicoResponse:
+      allOf:
+        - $ref: "#/components/schemas/CasoClinicoRequest"
+        - type: object
+          properties:
+            idCaso:
+              type: integer
+              format: int64
+            dataCriacao:
+              type: string
+              format: date-time
+            dataAtualizacao:
+              type: string
+              format: date-time
+    AlternativaPergunta:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        letra:
+          type: string
+          maxLength: 10
+        texto:
+          type: string
+        correta:
+          type: boolean
+    AlternativaAluno:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        letra:
+          type: string
+          maxLength: 10
+        texto:
+          type: string
+    PerguntaRequest:
+      type: object
+      required:
+        - texto
+        - tipo
+        - gabarito
+        - resposta
+      properties:
+        idCaso:
+          type: integer
+          format: int64
+          nullable: true
+        texto:
+          type: string
+        tipo:
+          type: string
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+          example: MULTIPLA_ESCOLHA
+        gabarito:
+          type: string
+        resposta:
+          type: string
+        alternativas:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlternativaPergunta"
+    PerguntaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        idCaso:
+          type: integer
+          format: int64
+        texto:
+          type: string
+        tipo:
+          type: string
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+          example: MULTIPLA_ESCOLHA
+        gabarito:
+          type: string
+        resposta:
+          type: string
+        alternativas:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlternativaPergunta"
+    PerguntaAluno:
+      type: object
+      description: Pergunta sem campos de correcao ou gabarito.
+      properties:
+        id:
+          type: integer
+          format: int64
+        idCaso:
+          type: integer
+          format: int64
+        texto:
+          type: string
+        tipo:
+          type: string
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+        alternativas:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlternativaAluno"
+    ConteudoClinicoAluno:
+      type: object
+      description: Conteudo clinico sem o diagnostico esperado.
+      properties:
+        idConteudo:
+          type: integer
+          format: int64
+        idCaso:
+          type: integer
+          format: int64
+        sintomas:
+          type: string
+        contexto:
+          type: string
+        examClinico:
+          type: string
+        antecClinico:
+          type: string
+    CasoClinicoAluno:
+      type: object
+      description: Visao segura do caso destinada ao aluno.
+      properties:
+        caso:
+          $ref: "#/components/schemas/CasoClinicoResponse"
+        pacientes:
+          type: array
+          items:
+            type: object
+        conteudosClinicos:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConteudoClinicoAluno"
+        perguntas:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerguntaAluno"
+        inicioTentativa:
+          type: string
+          format: date-time
+        prazoFinal:
+          type: string
+          format: date-time
+        segundosRestantes:
+          type: integer
+          format: int64
+    ResponderCasoRequest:
+      type: object
+      properties:
+        respostas:
+          type: array
+          items:
+            type: object
+            properties:
+              idPergunta:
+                type: integer
+                format: int64
+              respostaMarcada:
+                type: string

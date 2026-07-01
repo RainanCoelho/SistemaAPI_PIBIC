@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /Sistema_Crud_API_PIBIC
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

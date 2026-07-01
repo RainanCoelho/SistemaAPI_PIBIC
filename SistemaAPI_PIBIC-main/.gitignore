@@ -1,0 +1,10 @@
+Sistema_Crud_API_PIBIC/target/
+*.class
+.idea/
+target/
+*.iml
+out/
+build/
+.env
+.env.*
+!.env.example
