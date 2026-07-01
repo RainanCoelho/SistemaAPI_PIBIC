@@ -329,6 +329,29 @@ paths:
       responses:
         "200":
           description: Caso publicado
+  /casos/{id}/ia/gerar:
+    post:
+      summary: Gera conteudo clinico com apoio da IA
+      description: Completa os campos nao informados pelo professor e salva o conteudo gerado no caso clinico.
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasoClinicoIARequest"
+      responses:
+        "200":
+          description: Conteudo clinico gerado e salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoIAResponse"
+        "400":
+          description: Dados invalidos ou falha na geracao pela IA
+        "403":
+          description: Usuario sem acesso ao caso clinico
   /casos/{casoId}/perguntas:
     get:
       summary: Lista perguntas de um caso
@@ -561,6 +584,36 @@ components:
             dataAtualizacao:
               type: string
               format: date-time
+    CasoClinicoIARequest:
+      type: object
+      description: Campos preenchidos parcialmente pelo professor; os campos ausentes serao completados pela IA.
+      properties:
+        sintomas:
+          type: string
+          maxLength: 10000
+        contexto:
+          type: string
+          maxLength: 10000
+        examClinico:
+          type: string
+          maxLength: 10000
+        antecClinico:
+          type: string
+          maxLength: 10000
+        diagEsperado:
+          type: string
+          maxLength: 10000
+    CasoClinicoIAResponse:
+      allOf:
+        - $ref: "#/components/schemas/CasoClinicoIARequest"
+        - type: object
+          properties:
+            idConteudo:
+              type: integer
+              format: int64
+            idCaso:
+              type: integer
+              format: int64
     AlternativaPergunta:
       type: object
       properties:
