@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.service.AutorizacaoUsuarioService;
@@ -35,5 +36,13 @@ public class CasoClinicoIAController {
             @RequestBody @Valid CasoClinicoRequestDTO dto) {
         autorizacaoService.validarAcessoCaso(id);
         return ResponseEntity.ok(groqService.gerarConteudo(id, dto));
+    }
+
+    @PostMapping("/ajustar")
+    public ResponseEntity<CasoClinicoResponseDTO> ajustarConteudo(
+            @PathVariable @Min(1) Long id,
+            @RequestBody @Valid CasoClinicoAjusteRequestDTO dto) {
+        autorizacaoService.validarAcessoCaso(id);
+        return ResponseEntity.ok(groqService.ajustarConteudo(id, dto));
     }
 }
