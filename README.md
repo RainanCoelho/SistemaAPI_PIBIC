@@ -10,6 +10,7 @@ O sistema permite que professores construam experiências de estudo baseadas em 
 
 - Criar, editar e publicar casos clínicos.
 - Cadastrar pacientes, conteúdos clínicos e perguntas.
+- Gerar e ajustar conteúdos clínicos com apoio de IA.
 - Definir o nível de dificuldade e o tempo limite de cada caso.
 - Acompanhar o desempenho dos alunos.
 
@@ -28,7 +29,7 @@ O sistema permite que professores construam experiências de estudo baseadas em 
 
 ## Tecnologias
 
-Java, Spring Boot, Spring Security, Spring Data JPA, PostgreSQL, Flyway e Maven.
+Java, Spring Boot, Spring Security, Spring Data JPA, Spring AI, PostgreSQL, Flyway e Maven.
 
 ## Sobre o projeto
 

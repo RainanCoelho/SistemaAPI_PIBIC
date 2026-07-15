@@ -12,5 +12,7 @@ public interface paciente_repository extends JpaRepository<paciente, Long> {
 
     List<paciente> findByCasoClinicoIdCaso(Long idCaso);
 
+    boolean existsByCasoClinicoIdCaso(Long idCaso);
+
     Page<paciente> findByCasoClinicoProfessorId(Long idProfessor, Pageable pageable);
 }

@@ -352,6 +352,29 @@ paths:
           description: Dados invalidos ou falha na geracao pela IA
         "403":
           description: Usuario sem acesso ao caso clinico
+  /casos/{id}/ia/ajustar:
+    post:
+      summary: Ajusta conteudo clinico existente com apoio da IA
+      description: Reescreve o conteudo clinico mais recente do caso conforme o tipo de ajuste solicitado.
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasoClinicoIAAjusteRequest"
+      responses:
+        "200":
+          description: Conteudo clinico ajustado e salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoIAResponse"
+        "400":
+          description: Dados invalidos ou falha no ajuste pela IA
+        "403":
+          description: Usuario sem acesso ao caso clinico
   /casos/{casoId}/perguntas:
     get:
       summary: Lista perguntas de um caso
@@ -556,9 +579,6 @@ components:
         especialidade:
           type: string
           maxLength: 120
-        status:
-          type: string
-          enum: [RASCUNHO, PUBLICADO, ARQUIVADO]
         objetivoAprendizagem:
           type: string
         nivelDificuldade:
@@ -578,6 +598,9 @@ components:
             idCaso:
               type: integer
               format: int64
+            status:
+              type: string
+              enum: [RASCUNHO, PUBLICADO, ARQUIVADO]
             dataCriacao:
               type: string
               format: date-time
@@ -601,6 +624,26 @@ components:
           type: string
           maxLength: 10000
         diagEsperado:
+          type: string
+          maxLength: 10000
+        permitirComplementoIa:
+          type: boolean
+          description: Permite que a IA complemente dados ausentes do paciente.
+        incluirResultadosExamesClinicos:
+          type: boolean
+          description: Permite incluir resultados de exames laboratoriais, imagem ou complementares.
+        informacoesAdicionaisPaciente:
+          type: string
+          maxLength: 10000
+    CasoClinicoIAAjusteRequest:
+      type: object
+      required:
+        - tipoAjuste
+      properties:
+        tipoAjuste:
+          type: string
+          enum: [REGERAR, SIMPLIFICAR, COMPLEXIFICAR, PERSONALIZADO]
+        instrucao:
           type: string
           maxLength: 10000
     CasoClinicoIAResponse:

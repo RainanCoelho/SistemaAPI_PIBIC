@@ -47,7 +47,6 @@ public class CasoClinicoMapper {
         caso.setAreaSaude(dto.getAreaSaude());
         caso.setEstilo(dto.getEstilo());
         caso.setEspecialidade(dto.getEspecialidade());
-        caso.setStatus(dto.getStatus());
         caso.setObjetivoAprendizagem(dto.getObjetivoAprendizagem());
         caso.setNivelDificuldade(dto.getNivelDificuldade());
         if (dto.getTempoLimiteMinutos() != null) {

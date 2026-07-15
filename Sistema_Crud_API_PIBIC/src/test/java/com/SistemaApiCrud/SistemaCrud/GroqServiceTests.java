@@ -12,8 +12,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.PacienteGeradoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
@@ -24,31 +26,20 @@ import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
 import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
+import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoAiClient;
 import com.SistemaApiCrud.SistemaCrud.service.GroqService;
-import com.google.gson.Gson;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Protocol;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 class GroqServiceTests {
 
+    private final CasoClinicoAiClient aiClient = mock(CasoClinicoAiClient.class);
     private final caso_clinico_repository casoRepository = mock(caso_clinico_repository.class);
     private final conteudo_clinico_repository conteudoRepository = mock(conteudo_clinico_repository.class);
     private final paciente_repository pacienteRepository = mock(paciente_repository.class);
 
     @Test
-    void deveCompletarCamposVaziosComRespostaDaGroqEPreservarDadosDoProfessor() {
-        GroqService service = new GroqService(
-                clientComRespostaGroq(),
-                new Gson(),
-                casoRepository,
-                conteudoRepository,
-                pacienteRepository,
-                "chave-teste",
-                "llama-3.3-70b-versatile");
+    void deveCompletarCamposVaziosComRespostaDaIaEPreservarDadosDoProfessor() {
+        GroqService service = serviceComChave();
+        when(aiClient.gerarConteudo(any())).thenReturn(respostaIa());
 
         casos_clinicos caso = criarCaso();
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
@@ -80,13 +71,11 @@ class GroqServiceTests {
     @Test
     void deveExigirChaveGroqQuandoExistemCamposParaGerar() {
         GroqService service = new GroqService(
-                new OkHttpClient(),
-                new Gson(),
+                aiClient,
                 casoRepository,
                 conteudoRepository,
                 pacienteRepository,
-                "",
-                "llama-3.3-70b-versatile");
+                "");
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(criarCaso()));
 
@@ -104,14 +93,8 @@ class GroqServiceTests {
 
     @Test
     void deveAjustarConteudoClinicoExistenteComIa() {
-        GroqService service = new GroqService(
-                clientComRespostaGroq(),
-                new Gson(),
-                casoRepository,
-                conteudoRepository,
-                pacienteRepository,
-                "chave-teste",
-                "llama-3.3-70b-versatile");
+        GroqService service = serviceComChave();
+        when(aiClient.gerarConteudo(any())).thenReturn(respostaIa());
 
         casos_clinicos caso = criarCaso();
         conteudo_clinico conteudoAtual = new conteudo_clinico();
@@ -140,14 +123,8 @@ class GroqServiceTests {
 
     @Test
     void deveAtualizarPacienteEObjetivoQuandoIaComplementaInformacoes() {
-        GroqService service = new GroqService(
-                clientComRespostaGroqComComplementos(),
-                new Gson(),
-                casoRepository,
-                conteudoRepository,
-                pacienteRepository,
-                "chave-teste",
-                "llama-3.3-70b-versatile");
+        GroqService service = serviceComChave();
+        when(aiClient.gerarConteudo(any())).thenReturn(respostaIaComComplementos());
 
         casos_clinicos caso = criarCaso();
         caso.setObjetivoAprendizagem(null);
@@ -191,14 +168,8 @@ class GroqServiceTests {
 
     @Test
     void deveAtualizarPacienteQuandoAjusteSolicitaMudancaNosDados() {
-        GroqService service = new GroqService(
-                clientComRespostaGroqAjustandoPaciente(),
-                new Gson(),
-                casoRepository,
-                conteudoRepository,
-                pacienteRepository,
-                "chave-teste",
-                "llama-3.3-70b-versatile");
+        GroqService service = serviceComChave();
+        when(aiClient.gerarConteudo(any())).thenReturn(respostaIaAjustandoPaciente());
 
         casos_clinicos caso = criarCaso();
         conteudo_clinico conteudoAtual = new conteudo_clinico();
@@ -238,82 +209,78 @@ class GroqServiceTests {
         assertThat(conteudoAtual.getContexto()).contains("22 anos");
     }
 
-    private OkHttpClient clientComRespostaGroq() {
-        return new OkHttpClient.Builder()
-                .addInterceptor(chain -> new Response.Builder()
-                        .request(chain.request())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(200)
-                        .message("OK")
-                        .body(ResponseBody.create(respostaGroq(), MediaType.get("application/json")))
-                        .build())
-                .build();
+    private GroqService serviceComChave() {
+        return new GroqService(
+                aiClient,
+                casoRepository,
+                conteudoRepository,
+                pacienteRepository,
+                "chave-teste");
     }
 
-    private String respostaGroq() {
-        return """
-                {
-                  "choices": [
-                    {
-                      "message": {
-                        "content": "{\\"sintomas\\":\\"Febre gerada pela IA\\",\\"contexto\\":\\"Paciente adulto em atendimento ambulatorial\\",\\"examClinico\\":\\"Ausculta pulmonar com sibilos\\",\\"antecClinico\\":\\"Historico de asma\\",\\"diagEsperado\\":\\"Exacerbacao asmatica\\"}"
-                      }
-                    }
-                  ]
-                }
-                """;
+    private CasoClinicoGeradoIaDTO respostaIa() {
+        CasoClinicoGeradoIaDTO resposta = new CasoClinicoGeradoIaDTO();
+        resposta.setSintomas("Febre gerada pela IA");
+        resposta.setContexto("Paciente adulto em atendimento ambulatorial");
+        resposta.setExamClinico("Ausculta pulmonar com sibilos");
+        resposta.setAntecClinico("Historico de asma");
+        resposta.setDiagEsperado("Exacerbacao asmatica");
+        return resposta;
     }
 
-    private OkHttpClient clientComRespostaGroqComComplementos() {
-        return new OkHttpClient.Builder()
-                .addInterceptor(chain -> new Response.Builder()
-                        .request(chain.request())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(200)
-                        .message("OK")
-                        .body(ResponseBody.create(respostaGroqComComplementos(), MediaType.get("application/json")))
-                        .build())
-                .build();
+    private CasoClinicoGeradoIaDTO respostaIaComComplementos() {
+        CasoClinicoGeradoIaDTO resposta = respostaIa();
+        resposta.setSintomas("Dispneia e chiado");
+        resposta.setContexto("Paciente procura atendimento por piora respiratoria");
+        resposta.setExamClinico("Sibilos difusos");
+        resposta.setObjetivoAprendizagem("Identificar sinais de exacerbação asmática e definir conduta inicial.");
+        resposta.setPaciente(pacienteGerado(
+                "Carlos Henrique",
+                45,
+                "MASCULINO",
+                "CASADO",
+                "Professor",
+                "80 kg",
+                "170 cm"));
+        return resposta;
     }
 
-    private String respostaGroqComComplementos() {
-        return """
-                {
-                  "choices": [
-                    {
-                      "message": {
-                        "content": "{\\"sintomas\\":\\"Dispneia e chiado\\",\\"contexto\\":\\"Paciente procura atendimento por piora respiratoria\\",\\"examClinico\\":\\"Sibilos difusos\\",\\"antecClinico\\":\\"Asma previa\\",\\"diagEsperado\\":\\"Exacerbacao asmatica\\",\\"objetivoAprendizagem\\":\\"Identificar sinais de exacerbação asmática e definir conduta inicial.\\",\\"paciente\\":{\\"nome\\":\\"Carlos Henrique\\",\\"idade\\":45,\\"sexo\\":\\"MASCULINO\\",\\"estadoCivil\\":\\"CASADO\\",\\"profissao\\":\\"Professor\\",\\"peso\\":\\"80 kg\\",\\"altura\\":\\"170 cm\\"}}"
-                      }
-                    }
-                  ]
-                }
-                """;
+    private CasoClinicoGeradoIaDTO respostaIaAjustandoPaciente() {
+        CasoClinicoGeradoIaDTO resposta = respostaIa();
+        resposta.setSintomas("Dor no peito intermitente e falta de ar aos esforços");
+        resposta.setContexto("Paciente João Silva, 22 anos, sexo masculino, casado, engenheiro, com peso de 80kg e altura de 1.75m.");
+        resposta.setExamClinico("ECG com alteracoes isquemicas");
+        resposta.setAntecClinico("Hipertensao");
+        resposta.setDiagEsperado("Angina instavel");
+        resposta.setObjetivoAprendizagem("Avaliar conduta respiratoria");
+        resposta.setPaciente(pacienteGerado(
+                "João Silva",
+                22,
+                "MASCULINO",
+                "CASADO",
+                "Engenheiro",
+                "80kg",
+                "1.75m"));
+        return resposta;
     }
 
-    private OkHttpClient clientComRespostaGroqAjustandoPaciente() {
-        return new OkHttpClient.Builder()
-                .addInterceptor(chain -> new Response.Builder()
-                        .request(chain.request())
-                        .protocol(Protocol.HTTP_1_1)
-                        .code(200)
-                        .message("OK")
-                        .body(ResponseBody.create(respostaGroqAjustandoPaciente(), MediaType.get("application/json")))
-                        .build())
-                .build();
-    }
-
-    private String respostaGroqAjustandoPaciente() {
-        return """
-                {
-                  "choices": [
-                    {
-                      "message": {
-                        "content": "{\\"sintomas\\":\\"Dor no peito intermitente e falta de ar aos esforços\\",\\"contexto\\":\\"Paciente João Silva, 22 anos, sexo masculino, casado, engenheiro, com peso de 80kg e altura de 1.75m.\\",\\"examClinico\\":\\"ECG com alteracoes isquemicas\\",\\"antecClinico\\":\\"Hipertensao\\",\\"diagEsperado\\":\\"Angina instavel\\",\\"objetivoAprendizagem\\":\\"Avaliar conduta respiratoria\\",\\"paciente\\":{\\"nome\\":\\"João Silva\\",\\"idade\\":22,\\"sexo\\":\\"MASCULINO\\",\\"estadoCivil\\":\\"CASADO\\",\\"profissao\\":\\"Engenheiro\\",\\"peso\\":\\"80kg\\",\\"altura\\":\\"1.75m\\"}}"
-                      }
-                    }
-                  ]
-                }
-                """;
+    private PacienteGeradoIaDTO pacienteGerado(
+            String nome,
+            Integer idade,
+            String sexo,
+            String estadoCivil,
+            String profissao,
+            String peso,
+            String altura) {
+        PacienteGeradoIaDTO paciente = new PacienteGeradoIaDTO();
+        paciente.setNome(nome);
+        paciente.setIdade(idade);
+        paciente.setSexo(sexo);
+        paciente.setEstadoCivil(estadoCivil);
+        paciente.setProfissao(profissao);
+        paciente.setPeso(peso);
+        paciente.setAltura(altura);
+        return paciente;
     }
 
     private casos_clinicos criarCaso() {

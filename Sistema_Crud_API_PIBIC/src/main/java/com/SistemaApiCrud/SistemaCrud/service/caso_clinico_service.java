@@ -142,6 +142,7 @@ public class caso_clinico_service {
 
     public caso_clinico_response_DTO publicar(Long id) {
         casos_clinicos caso = buscarEntityPorId(id);
+        validarCasoPublicavel(caso);
         caso.setStatus(StatusCasoClinico.PUBLICADO);
         return mapper.toResponse(repository.save(caso));
     }
@@ -359,6 +360,21 @@ public class caso_clinico_service {
 
             return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    private void validarCasoPublicavel(casos_clinicos caso) {
+        Long idCaso = caso.getIdCaso();
+        if (!pacienteRepository.existsByCasoClinicoIdCaso(idCaso)) {
+            throw new BusinessException("Cadastre ao menos um paciente antes de publicar o caso clinico");
+        }
+
+        if (!conteudoRepository.existsByCasoClinicoIdCaso(idCaso)) {
+            throw new BusinessException("Cadastre ou gere o conteudo clinico antes de publicar o caso clinico");
+        }
+
+        if (!perguntaRepository.existsByCasoClinicoIdCaso(idCaso)) {
+            throw new BusinessException("Cadastre ao menos uma pergunta antes de publicar o caso clinico");
+        }
     }
 
     private casos_clinicos buscarEntityPorId(Long id) {

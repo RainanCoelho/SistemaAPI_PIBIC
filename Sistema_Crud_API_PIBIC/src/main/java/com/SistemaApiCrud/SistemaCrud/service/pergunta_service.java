@@ -1,7 +1,9 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -121,8 +123,41 @@ public class pergunta_service {
     }
 
     private void validarPergunta(pergunta_request_DTO dto) {
-        if (dto.getTipo() == TipoPergunta.MULTIPLA_ESCOLHA && montarAlternativasDTO(dto).isEmpty()) {
-            throw new BadRequestException("Perguntas de multipla escolha precisam ter alternativas");
+        if (dto.getTipo() != TipoPergunta.MULTIPLA_ESCOLHA) {
+            return;
+        }
+
+        List<alternativa_pergunta_DTO> alternativas = montarAlternativasDTO(dto);
+        if (alternativas.size() < 2) {
+            throw new BadRequestException("Perguntas de multipla escolha precisam ter pelo menos duas alternativas");
+        }
+
+        Set<String> letras = new HashSet<>();
+        long corretas = 0;
+        alternativa_pergunta_DTO alternativaCorreta = null;
+        for (alternativa_pergunta_DTO alternativa : alternativas) {
+            if (alternativa == null) {
+                throw new BadRequestException("Alternativa invalida");
+            }
+            String letra = alternativa.getLetra() == null ? "" : alternativa.getLetra().trim().toUpperCase();
+            if (letra.isBlank()) {
+                throw new BadRequestException("A letra da alternativa e obrigatoria");
+            }
+            if (!letras.add(letra)) {
+                throw new BadRequestException("As letras das alternativas nao podem se repetir");
+            }
+            if (alternativaCorreta(alternativa, dto)) {
+                corretas++;
+                alternativaCorreta = alternativa;
+            }
+        }
+
+        if (corretas != 1) {
+            throw new BadRequestException("Perguntas de multipla escolha precisam ter exatamente uma alternativa correta");
+        }
+
+        if (!gabaritoApontaParaAlternativaCorreta(alternativaCorreta, dto)) {
+            throw new BadRequestException("O gabarito deve corresponder a alternativa correta");
         }
     }
 
@@ -175,6 +210,21 @@ public class pergunta_service {
                 : correspondeGabarito(dto.getLetra(), perguntaDTO));
 
         return alternativa;
+    }
+
+    private boolean alternativaCorreta(alternativa_pergunta_DTO alternativa, pergunta_request_DTO perguntaDTO) {
+        return alternativa.getCorreta() != null
+                ? alternativa.getCorreta()
+                : correspondeGabarito(alternativa.getLetra(), perguntaDTO);
+    }
+
+    private boolean gabaritoApontaParaAlternativaCorreta(
+            alternativa_pergunta_DTO alternativa,
+            pergunta_request_DTO perguntaDTO) {
+        return corresponde(alternativa.getLetra(), perguntaDTO.getGabarito())
+                || corresponde(alternativa.getTexto(), perguntaDTO.getGabarito())
+                || corresponde(alternativa.getLetra(), perguntaDTO.getResposta())
+                || corresponde(alternativa.getTexto(), perguntaDTO.getResposta());
     }
 
     private alternativa_pergunta_DTO paraAlternativaDTO(AlternativaPergunta alternativa) {

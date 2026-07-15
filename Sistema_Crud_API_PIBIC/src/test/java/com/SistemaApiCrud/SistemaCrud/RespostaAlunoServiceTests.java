@@ -18,7 +18,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.responder_caso_request_DTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.alternativa_pergunta_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_response_DTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.resposta_pergunta_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.resultado_caso_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AlternativaPergunta;
@@ -26,20 +28,27 @@ import com.SistemaApiCrud.SistemaCrud.entity.Aluno;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
+import com.SistemaApiCrud.SistemaCrud.entity.paciente;
 import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
+import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.alternativa_pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.aluno_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.tentativa_caso_repository;
 import com.SistemaApiCrud.SistemaCrud.service.caso_clinico_service;
 import com.SistemaApiCrud.SistemaCrud.service.JwtService;
+import com.SistemaApiCrud.SistemaCrud.service.pergunta_service;
 import com.SistemaApiCrud.SistemaCrud.service.resposta_aluno_service;
 
 @SpringBootTest
@@ -61,6 +70,9 @@ class RespostaAlunoServiceTests {
     private caso_clinico_service casoService;
 
     @Autowired
+    private pergunta_service perguntaService;
+
+    @Autowired
     private aluno_repository alunoRepository;
 
     @Autowired
@@ -68,6 +80,12 @@ class RespostaAlunoServiceTests {
 
     @Autowired
     private caso_clinico_repository casoRepository;
+
+    @Autowired
+    private paciente_repository pacienteRepository;
+
+    @Autowired
+    private conteudo_clinico_repository conteudoRepository;
 
     @Autowired
     private pergunta_repository perguntaRepository;
@@ -230,6 +248,68 @@ class RespostaAlunoServiceTests {
     }
 
     @Test
+    void naoDevePublicarCasoSemPacienteConteudoEPergunta() {
+        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
+
+        assertThatThrownBy(() -> casoService.publicar(caso.getIdCaso()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cadastre ao menos um paciente antes de publicar o caso clinico");
+
+        pacienteRepository.save(new paciente(
+                null,
+                caso,
+                "Paciente Teste",
+                "Professor",
+                Sexo.NAO_INFORMADO,
+                30,
+                EstadoCivil.NAO_INFORMADO,
+                "1,70 m",
+                "70 kg"));
+
+        assertThatThrownBy(() -> casoService.publicar(caso.getIdCaso()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cadastre ou gere o conteudo clinico antes de publicar o caso clinico");
+
+        conteudo_clinico conteudo = new conteudo_clinico();
+        conteudo.setCasoClinico(caso);
+        conteudo.setSintomas("Sintomas");
+        conteudo.setContexto("Contexto");
+        conteudo.setExamClinico("Exame clinico");
+        conteudo.setAntecClinico("Antecedentes");
+        conteudo.setDiagEsperado("Diagnostico");
+        conteudoRepository.save(conteudo);
+
+        assertThatThrownBy(() -> casoService.publicar(caso.getIdCaso()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cadastre ao menos uma pergunta antes de publicar o caso clinico");
+
+        criarPergunta(caso, "A");
+        caso_clinico_response_DTO publicado = casoService.publicar(caso.getIdCaso());
+
+        assertThat(publicado.getStatus()).isEqualTo(StatusCasoClinico.PUBLICADO);
+    }
+
+    @Test
+    void deveValidarAlternativasDeMultiplaEscolha() {
+        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        pergunta_request_DTO comLetraDuplicada = perguntaMultiplaEscolha(List.of(
+                new alternativa_pergunta_DTO(null, "A", "Primeira", true),
+                new alternativa_pergunta_DTO(null, "A", "Duplicada", false)));
+
+        assertThatThrownBy(() -> perguntaService.salvarEmCaso(caso.getIdCaso(), comLetraDuplicada))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
+                .hasMessage("As letras das alternativas nao podem se repetir");
+
+        pergunta_request_DTO semCorreta = perguntaMultiplaEscolha(List.of(
+                new alternativa_pergunta_DTO(null, "A", "Primeira", false),
+                new alternativa_pergunta_DTO(null, "B", "Segunda", false)));
+
+        assertThatThrownBy(() -> perguntaService.salvarEmCaso(caso.getIdCaso(), semCorreta))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
+                .hasMessage("Perguntas de multipla escolha precisam ter exatamente uma alternativa correta");
+    }
+
+    @Test
     void deveGerarTokenJwtValidoComRoles() {
         var authentication = new UsernamePasswordAuthenticationToken(
                 "admin",
@@ -307,6 +387,16 @@ class RespostaAlunoServiceTests {
         pergunta.setGabarito(gabarito);
 
         return perguntaRepository.save(pergunta);
+    }
+
+    private pergunta_request_DTO perguntaMultiplaEscolha(List<alternativa_pergunta_DTO> alternativas) {
+        pergunta_request_DTO dto = new pergunta_request_DTO();
+        dto.setTexto("Qual a melhor conduta?");
+        dto.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
+        dto.setGabarito("A");
+        dto.setResposta("A");
+        dto.setAlternativas(alternativas);
+        return dto;
     }
 
     private void iniciarTentativa(Aluno aluno, casos_clinicos caso) {

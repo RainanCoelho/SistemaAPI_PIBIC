@@ -1,7 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.DTO;
 
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
-import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
@@ -44,8 +43,6 @@ public class caso_clinico_request_DTO {
     @NotBlank(message = "A especialidade e obrigatoria")
     @Size(max = 120, message = "A especialidade deve ter no maximo 120 caracteres")
     private String especialidade;
-
-    private StatusCasoClinico status;
 
     private String objetivoAprendizagem;
 

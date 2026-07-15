@@ -1,17 +1,15 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.function.Consumer;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoResponseDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.ChatRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.MessageDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.PacienteGeradoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
 import com.SistemaApiCrud.SistemaCrud.entity.paciente;
@@ -22,56 +20,38 @@ import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 @Service
 public class GroqService {
 
-    private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final String API_KEY_NAO_CONFIGURADA = "NAO_CONFIGURADO";
 
-    private final OkHttpClient client;
-    private final Gson gson;
+    private final CasoClinicoAiClient aiClient;
     private final caso_clinico_repository casoRepository;
     private final conteudo_clinico_repository conteudoRepository;
     private final paciente_repository pacienteRepository;
     private final String apiKey;
-    private final String model;
 
     public GroqService(
-            OkHttpClient client,
-            Gson gson,
+            CasoClinicoAiClient aiClient,
             caso_clinico_repository casoRepository,
             conteudo_clinico_repository conteudoRepository,
             paciente_repository pacienteRepository,
-            @Value("${groq.api.key:}") String apiKey,
-            @Value("${groq.model:llama-3.3-70b-versatile}") String model) {
-        this.client = client;
-        this.gson = gson;
+            @Value("${spring.ai.openai.api-key:}") String apiKey) {
+        this.aiClient = aiClient;
         this.casoRepository = casoRepository;
         this.conteudoRepository = conteudoRepository;
         this.pacienteRepository = pacienteRepository;
         this.apiKey = apiKey;
-        this.model = model;
     }
 
     public CasoClinicoResponseDTO gerarConteudo(Long idCaso, CasoClinicoRequestDTO dto) {
         casos_clinicos caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
 
-        JsonObject conteudoGerado = precisaGerar(caso, dto)
+        CasoClinicoGeradoIaDTO conteudoGerado = precisaGerar(caso, dto)
                 ? gerarCamposComIa(caso, dto)
-                : new JsonObject();
+                : new CasoClinicoGeradoIaDTO();
 
         aplicarComplementosGerados(caso, dto, conteudoGerado);
 
@@ -88,7 +68,7 @@ public class GroqService {
         conteudo_clinico conteudoAtual = conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Conteudo clinico nao encontrado para este caso"));
 
-        JsonObject conteudoGerado = gerarJsonComPrompt(montarPromptAjuste(caso, conteudoAtual, dto));
+        CasoClinicoGeradoIaDTO conteudoGerado = gerarConteudoComPrompt(montarPromptAjuste(caso, conteudoAtual, dto));
         aplicarAjustesGerados(caso, conteudoGerado);
         CasoClinicoResponseDTO response = montarResponse(
                 idCaso,
@@ -100,30 +80,19 @@ public class GroqService {
         return response;
     }
 
-    private JsonObject gerarCamposComIa(casos_clinicos caso, CasoClinicoRequestDTO dto) {
-        return gerarJsonComPrompt(montarPrompt(caso, dto));
+    private CasoClinicoGeradoIaDTO gerarCamposComIa(casos_clinicos caso, CasoClinicoRequestDTO dto) {
+        return gerarConteudoComPrompt(montarPrompt(caso, dto));
     }
 
-    private JsonObject gerarJsonComPrompt(String prompt) {
-        if (apiKey == null || apiKey.isBlank()) {
+    private CasoClinicoGeradoIaDTO gerarConteudoComPrompt(String prompt) {
+        if (apiKey == null || apiKey.isBlank() || API_KEY_NAO_CONFIGURADA.equals(apiKey)) {
             throw new BusinessException("Configure a variavel GROQ_API_KEY antes de gerar conteudo com IA");
         }
 
-        String respostaBruta = chamarGroq(prompt);
-        String conteudo = extrairConteudoDaResposta(respostaBruta);
-
-        try {
-            JsonElement json = gson.fromJson(conteudo, JsonElement.class);
-            if (json == null || !json.isJsonObject()) {
-                throw new BusinessException("A IA retornou um conteudo em formato invalido");
-            }
-            return json.getAsJsonObject();
-        } catch (JsonParseException ex) {
-            throw new BusinessException("A IA retornou um JSON invalido");
-        }
+        return aiClient.gerarConteudo(prompt);
     }
 
-    private CasoClinicoResponseDTO montarResponse(Long idCaso, CasoClinicoRequestDTO dto, JsonObject gerado) {
+    private CasoClinicoResponseDTO montarResponse(Long idCaso, CasoClinicoRequestDTO dto, CasoClinicoGeradoIaDTO gerado) {
         CasoClinicoResponseDTO response = new CasoClinicoResponseDTO();
         response.setIdCaso(idCaso);
         response.setSintomas(campoFinal(dto.getSintomas(), gerado, "sintomas"));
@@ -197,7 +166,7 @@ public class GroqService {
         return prompt.toString();
     }
 
-    private void aplicarComplementosGerados(casos_clinicos caso, CasoClinicoRequestDTO dto, JsonObject gerado) {
+    private void aplicarComplementosGerados(casos_clinicos caso, CasoClinicoRequestDTO dto, CasoClinicoGeradoIaDTO gerado) {
         atualizarObjetivoAprendizagem(caso, gerado);
 
         if (Boolean.TRUE.equals(dto.getPermitirComplementoIa())) {
@@ -207,68 +176,68 @@ public class GroqService {
         }
     }
 
-    private void aplicarAjustesGerados(casos_clinicos caso, JsonObject gerado) {
+    private void aplicarAjustesGerados(casos_clinicos caso, CasoClinicoGeradoIaDTO gerado) {
         atualizarObjetivoAprendizagem(caso, gerado, true);
         pacienteRepository.findByCasoClinicoIdCaso(caso.getIdCaso()).stream()
                 .findFirst()
                 .ifPresent(paciente -> atualizarPacienteComIa(paciente, gerado, true));
     }
 
-    private void atualizarObjetivoAprendizagem(casos_clinicos caso, JsonObject gerado) {
+    private void atualizarObjetivoAprendizagem(casos_clinicos caso, CasoClinicoGeradoIaDTO gerado) {
         atualizarObjetivoAprendizagem(caso, gerado, false);
     }
 
-    private void atualizarObjetivoAprendizagem(casos_clinicos caso, JsonObject gerado, boolean sobrescreverValorAtual) {
+    private void atualizarObjetivoAprendizagem(casos_clinicos caso, CasoClinicoGeradoIaDTO gerado, boolean sobrescreverValorAtual) {
         if (!sobrescreverValorAtual && preenchido(caso.getObjetivoAprendizagem())) {
             return;
         }
 
-        String objetivoAprendizagem = textoDoJson(gerado, "objetivoAprendizagem");
+        String objetivoAprendizagem = gerado.getObjetivoAprendizagem();
         if (preenchido(objetivoAprendizagem)) {
             caso.setObjetivoAprendizagem(objetivoAprendizagem.trim());
             casoRepository.save(caso);
         }
     }
 
-    private void atualizarPacienteComIa(paciente paciente, JsonObject gerado, boolean sobrescreverDadosAtuais) {
-        JsonObject pacienteGerado = objetoDoJson(gerado, "paciente");
+    private void atualizarPacienteComIa(paciente paciente, CasoClinicoGeradoIaDTO gerado, boolean sobrescreverDadosAtuais) {
+        PacienteGeradoIaDTO pacienteGerado = gerado.getPaciente();
         if (pacienteGerado == null) {
             return;
         }
 
         boolean alterou = false;
         if (sobrescreverDadosAtuais || !valorPacienteInformado(paciente.getNome())) {
-            alterou |= atualizarTextoPaciente(textoDoJson(pacienteGerado, "nome"), paciente::setNome);
+            alterou |= atualizarTextoPaciente(pacienteGerado.getNome(), paciente::setNome);
         }
         if (sobrescreverDadosAtuais || paciente.getIdade() == null || paciente.getIdade() == 0) {
-            Integer idadeGerada = inteiroDoJson(pacienteGerado, "idade");
+            Integer idadeGerada = pacienteGerado.getIdade();
             if (idadeGerada != null && idadeGerada > 0 && idadeGerada <= 130) {
                 paciente.setIdade(idadeGerada);
                 alterou = true;
             }
         }
         if (sobrescreverDadosAtuais || paciente.getSexo() == null || paciente.getSexo() == Sexo.NAO_INFORMADO) {
-            Sexo sexoGerado = enumDoJson(pacienteGerado, "sexo", Sexo.class);
+            Sexo sexoGerado = enumDoValor(pacienteGerado.getSexo(), Sexo.class);
             if (sexoGerado != null) {
                 paciente.setSexo(sexoGerado);
                 alterou = true;
             }
         }
         if (sobrescreverDadosAtuais || paciente.getEstadoCivil() == null || paciente.getEstadoCivil() == EstadoCivil.NAO_INFORMADO) {
-            EstadoCivil estadoCivilGerado = enumDoJson(pacienteGerado, "estadoCivil", EstadoCivil.class);
+            EstadoCivil estadoCivilGerado = enumDoValor(pacienteGerado.getEstadoCivil(), EstadoCivil.class);
             if (estadoCivilGerado != null) {
                 paciente.setEstadoCivil(estadoCivilGerado);
                 alterou = true;
             }
         }
         if (sobrescreverDadosAtuais || !valorPacienteInformado(paciente.getProfissao())) {
-            alterou |= atualizarTextoPaciente(textoDoJson(pacienteGerado, "profissao"), paciente::setProfissao);
+            alterou |= atualizarTextoPaciente(pacienteGerado.getProfissao(), paciente::setProfissao);
         }
         if (sobrescreverDadosAtuais || !valorPacienteInformado(paciente.getPeso())) {
-            alterou |= atualizarTextoPaciente(textoDoJson(pacienteGerado, "peso"), paciente::setPeso);
+            alterou |= atualizarTextoPaciente(pacienteGerado.getPeso(), paciente::setPeso);
         }
         if (sobrescreverDadosAtuais || !valorPacienteInformado(paciente.getAltura())) {
-            alterou |= atualizarTextoPaciente(textoDoJson(pacienteGerado, "altura"), paciente::setAltura);
+            alterou |= atualizarTextoPaciente(pacienteGerado.getAltura(), paciente::setAltura);
         }
 
         if (alterou) {
@@ -412,37 +381,7 @@ public class GroqService {
         return true;
     }
 
-    private JsonObject objetoDoJson(JsonObject json, String campo) {
-        if (json == null || !json.has(campo) || json.get(campo).isJsonNull() || !json.get(campo).isJsonObject()) {
-            return null;
-        }
-
-        return json.getAsJsonObject(campo);
-    }
-
-    private String textoDoJson(JsonObject json, String campo) {
-        if (json == null || !json.has(campo) || json.get(campo).isJsonNull() || !json.get(campo).isJsonPrimitive()) {
-            return null;
-        }
-
-        return json.get(campo).getAsString();
-    }
-
-    private Integer inteiroDoJson(JsonObject json, String campo) {
-        String valor = textoDoJson(json, campo);
-        if (!preenchido(valor)) {
-            return null;
-        }
-
-        try {
-            return Integer.valueOf(valor.trim());
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-
-    private <T extends Enum<T>> T enumDoJson(JsonObject json, String campo, Class<T> tipoEnum) {
-        String valor = textoDoJson(json, campo);
+    private <T extends Enum<T>> T enumDoValor(String valor, Class<T> tipoEnum) {
         if (!valorPacienteInformado(valor)) {
             return null;
         }
@@ -460,54 +399,28 @@ public class GroqService {
         }
     }
 
-    private String chamarGroq(String prompt) {
-        ChatRequestDTO chatRequest = new ChatRequestDTO(model, List.of(new MessageDTO("user", prompt)));
-        RequestBody requestBody = RequestBody.create(gson.toJson(chatRequest), JSON);
-
-        Request request = new Request.Builder()
-                .url(GROQ_URL)
-                .header("Authorization", "Bearer " + apiKey)
-                .post(requestBody)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            String body = response.body() != null ? response.body().string() : "";
-            if (response.isSuccessful()) {
-                return body;
-            }
-            throw new BusinessException("Erro ao chamar a Groq: status " + response.code());
-        } catch (IOException ex) {
-            throw new BusinessException("Nao foi possivel conectar com a Groq");
-        }
-    }
-
-    private String extrairConteudoDaResposta(String respostaBruta) {
-        try {
-            JsonObject resposta = gson.fromJson(respostaBruta, JsonObject.class);
-            JsonArray choices = resposta.getAsJsonArray("choices");
-            if (choices == null || choices.isEmpty()) {
-                throw new BusinessException("A Groq nao retornou nenhuma resposta");
-            }
-            JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
-            if (message == null || !message.has("content")) {
-                throw new BusinessException("A resposta da Groq nao contem o conteudo esperado");
-            }
-            return message.get("content").getAsString();
-        } catch (IllegalStateException | NullPointerException | JsonParseException ex) {
-            throw new BusinessException("A resposta da Groq veio em formato inesperado");
-        }
-    }
-
-    private String campoFinal(String informado, JsonObject gerado, String campo) {
+    private String campoFinal(String informado, CasoClinicoGeradoIaDTO gerado, String campo) {
         if (preenchido(informado)) {
             return informado;
         }
 
-        if (!gerado.has(campo) || gerado.get(campo).isJsonNull() || !preenchido(gerado.get(campo).getAsString())) {
+        String valorGerado = valorGerado(gerado, campo);
+        if (!preenchido(valorGerado)) {
             throw new BusinessException("A IA nao retornou o campo obrigatorio: " + campo);
         }
 
-        return gerado.get(campo).getAsString();
+        return valorGerado;
+    }
+
+    private String valorGerado(CasoClinicoGeradoIaDTO gerado, String campo) {
+        return switch (campo) {
+            case "sintomas" -> gerado.getSintomas();
+            case "contexto" -> gerado.getContexto();
+            case "examClinico" -> gerado.getExamClinico();
+            case "antecClinico" -> gerado.getAntecClinico();
+            case "diagEsperado" -> gerado.getDiagEsperado();
+            default -> null;
+        };
     }
 
     private boolean precisaGerar(casos_clinicos caso, CasoClinicoRequestDTO dto) {

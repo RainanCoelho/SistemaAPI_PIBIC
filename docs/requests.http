@@ -96,6 +96,32 @@ Content-Type: application/json
   "tempoLimiteMinutos": 90
 }
 
+### Gerar conteudo clinico com IA
+POST {{baseUrl}}/casos/1/ia/gerar
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "sintomas": "",
+  "contexto": "",
+  "examClinico": "",
+  "antecClinico": "",
+  "diagEsperado": "",
+  "permitirComplementoIa": true,
+  "incluirResultadosExamesClinicos": true,
+  "informacoesAdicionaisPaciente": "Paciente com queixa respiratoria aguda."
+}
+
+### Ajustar conteudo clinico com IA
+POST {{baseUrl}}/casos/1/ia/ajustar
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "tipoAjuste": "SIMPLIFICAR",
+  "instrucao": ""
+}
+
 ### Criar pergunta com alternativas flexiveis
 POST {{baseUrl}}/casos/1/perguntas
 Authorization: Bearer {{loginProfessor.response.body.$.token}}

@@ -155,6 +155,40 @@
       }
     },
     {
+      "name": "Gerar conteudo clinico com IA",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sintomas\": \"\",\n  \"contexto\": \"\",\n  \"examClinico\": \"\",\n  \"antecClinico\": \"\",\n  \"diagEsperado\": \"\",\n  \"permitirComplementoIa\": true,\n  \"incluirResultadosExamesClinicos\": true,\n  \"informacoesAdicionaisPaciente\": \"Paciente com queixa respiratoria aguda.\"\n}"
+        },
+        "url": "{{baseUrl}}/casos/1/ia/gerar"
+      }
+    },
+    {
+      "name": "Ajustar conteudo clinico com IA",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tipoAjuste\": \"SIMPLIFICAR\",\n  \"instrucao\": \"\"\n}"
+        },
+        "url": "{{baseUrl}}/casos/1/ia/ajustar"
+      }
+    },
+    {
       "name": "Publicar caso",
       "request": {
         "method": "PATCH",

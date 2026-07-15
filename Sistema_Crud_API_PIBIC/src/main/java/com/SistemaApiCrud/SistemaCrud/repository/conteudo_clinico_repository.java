@@ -12,6 +12,8 @@ public interface conteudo_clinico_repository extends JpaRepository<conteudo_clin
 
     List<conteudo_clinico> findByCasoClinicoIdCaso(Long idCaso);
 
+    boolean existsByCasoClinicoIdCaso(Long idCaso);
+
     java.util.Optional<conteudo_clinico> findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(Long idCaso);
 
     Page<conteudo_clinico> findByCasoClinicoProfessorId(Long idProfessor, Pageable pageable);
