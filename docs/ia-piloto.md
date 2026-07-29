@@ -23,8 +23,8 @@ O FreeLLMAPI não cria cotas gratuitas e não torna pago um modelo gratuito. Cad
 
 ## Preparação dos segredos
 
-1. Copie `.env.example` para `.env`.
-2. Substitua todas as senhas e os segredos de exemplo.
+1. Crie o arquivo local `.env`, que deve permanecer fora do controle de versão.
+2. Configure senhas e segredos exclusivos para o ambiente.
 3. Gere 32 bytes aleatórios em formato hexadecimal para `FREELLMAPI_CHAVE_CRIPTOGRAFIA`.
 
 Exemplo no PowerShell:

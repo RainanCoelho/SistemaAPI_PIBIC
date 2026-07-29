@@ -55,7 +55,7 @@ Uma repetição com a mesma decisão é idempotente; tentar trocar uma decisão 
 
 ## Perfis de execução
 
-O perfil padrão é `prod`, que exige as credenciais e segredos indicados em `.env.example`. Para desenvolvimento local, ative explicitamente `SPRING_PROFILES_ACTIVE=dev`; isso evita que credenciais previsíveis e usuários de demonstração sejam usados por engano em uma implantação.
+O perfil padrão é `prod`, que exige as credenciais e os segredos definidos no arquivo local `.env`, que não deve ser versionado. Para desenvolvimento local, ative explicitamente `SPRING_PROFILES_ACTIVE=dev`; isso evita que credenciais previsíveis e usuários de demonstração sejam usados por engano em uma implantação.
 
 ## Piloto de IA com FreeLLMAPI
 
@@ -65,7 +65,7 @@ O gateway não fornece créditos próprios. Ele reúne somente os provedores par
 
 ### Inicialização
 
-1. Copie `.env.example` para `.env`, troque todos os valores de exemplo e gere uma chave de criptografia exclusiva para `FREELLMAPI_CHAVE_CRIPTOGRAFIA`.
+1. Crie o arquivo local `.env`, configure as variáveis descritas em `docs/ia-piloto.md` e gere uma chave de criptografia exclusiva para `FREELLMAPI_CHAVE_CRIPTOGRAFIA`.
 2. Inicie PostgreSQL e o gateway:
 
    ```bash

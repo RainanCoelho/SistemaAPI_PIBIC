@@ -5,14 +5,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-CRUD_API}
-      POSTGRES_USER: ${POSTGRES_USER:-sistemaapi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+      POSTGRES_USER: ${DB_USER:?Defina DB_USER no arquivo .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sistemaapi} -d ${POSTGRES_DB:-CRUD_API}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?Defina DB_USER no arquivo .env} -d ${POSTGRES_DB:-CRUD_API}"]
       interval: 10s
       timeout: 5s
       retries: 5
