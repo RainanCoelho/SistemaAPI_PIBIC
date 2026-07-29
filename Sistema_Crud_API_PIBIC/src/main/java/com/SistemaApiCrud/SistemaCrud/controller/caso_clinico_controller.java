@@ -1,7 +1,5 @@
 package com.SistemaApiCrud.SistemaCrud.controller;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -25,10 +23,13 @@ import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_response_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.RevisarRespostaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.resposta_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.service.AutorizacaoUsuarioService;
 import com.SistemaApiCrud.SistemaCrud.service.caso_clinico_service;
 import com.SistemaApiCrud.SistemaCrud.service.pergunta_service;
+import com.SistemaApiCrud.SistemaCrud.service.resposta_aluno_service;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -41,14 +42,17 @@ public class caso_clinico_controller {
 
     private final caso_clinico_service service;
     private final pergunta_service perguntaService;
+    private final resposta_aluno_service servicoRespostaAluno;
     private final AutorizacaoUsuarioService autorizacaoService;
 
     public caso_clinico_controller(
             caso_clinico_service service,
             pergunta_service perguntaService,
+            resposta_aluno_service servicoRespostaAluno,
             AutorizacaoUsuarioService autorizacaoService) {
         this.service = service;
         this.perguntaService = perguntaService;
+        this.servicoRespostaAluno = servicoRespostaAluno;
         this.autorizacaoService = autorizacaoService;
     }
 
@@ -111,6 +115,26 @@ public class caso_clinico_controller {
     public ResponseEntity<caso_clinico_response_DTO> publicar(@PathVariable @Min(1) Long id) {
         autorizacaoService.validarAcessoCaso(id);
         return ResponseEntity.ok(service.publicar(id));
+    }
+
+    @GetMapping("/{id}/respostas/pendentes-revisao")
+    public Page<resposta_aluno_DTO> listarRespostasPendentesRevisao(
+            @PathVariable @Min(1) Long id,
+            @PageableDefault(size = 20, sort = "dataResposta") Pageable paginacao) {
+        autorizacaoService.validarAcessoCaso(id);
+        return servicoRespostaAluno.listarPendentesRevisao(id, paginacao);
+    }
+
+    @PatchMapping("/{id}/respostas/{idResposta}/revisao")
+    public ResponseEntity<resposta_aluno_DTO> revisarResposta(
+            @PathVariable @Min(1) Long id,
+            @PathVariable @Min(1) Long idResposta,
+            @RequestBody @Valid RevisarRespostaRequestDTO requisicao) {
+        autorizacaoService.validarAcessoCaso(id);
+        return ResponseEntity.ok(servicoRespostaAluno.revisarResposta(
+                id,
+                idResposta,
+                requisicao.getCorreta()));
     }
 
     @DeleteMapping("/{id}")

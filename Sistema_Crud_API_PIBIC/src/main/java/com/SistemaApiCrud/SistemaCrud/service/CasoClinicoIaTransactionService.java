@@ -1,0 +1,111 @@
+package com.SistemaApiCrud.SistemaCrud.service;
+
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.paciente;
+import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
+import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
+
+@Service
+public class CasoClinicoIaTransactionService {
+
+    private final CasoClinicoLockService casoLockService;
+    private final conteudo_clinico_repository conteudoRepository;
+    private final paciente_repository pacienteRepository;
+
+    public CasoClinicoIaTransactionService(
+            CasoClinicoLockService casoLockService,
+            conteudo_clinico_repository conteudoRepository,
+            paciente_repository pacienteRepository) {
+        this.casoLockService = casoLockService;
+        this.conteudoRepository = conteudoRepository;
+        this.pacienteRepository = pacienteRepository;
+    }
+
+    @Transactional
+    public <T> T executarGeracao(
+            Long idCaso,
+            String fingerprintEsperado,
+            Long idPacienteEsperado,
+            Function<casos_clinicos, T> operacao) {
+        bloquearPacienteEsperado(idPacienteEsperado);
+        casos_clinicos caso = casoLockService.bloquearRascunho(idCaso);
+        validarContextoInalterado(caso, fingerprintEsperado);
+        return operacao.apply(caso);
+    }
+
+    @Transactional
+    public <T> T executarAjuste(
+            Long idCaso,
+            Long idConteudoEsperado,
+            String fingerprintEsperado,
+            Long idPacienteEsperado,
+            BiFunction<casos_clinicos, conteudo_clinico, T> operacao) {
+        bloquearPacienteEsperado(idPacienteEsperado);
+        conteudo_clinico conteudo = conteudoRepository.findByIdForUpdate(idConteudoEsperado)
+                .orElseThrow(() -> contextoAlterado(
+                        "O conteudo clinico mudou durante o ajuste; tente novamente"));
+        casos_clinicos caso = casoLockService.bloquearRascunho(idCaso);
+
+        if (conteudo.getCasoClinico() == null
+                || !idCaso.equals(conteudo.getCasoClinico().getIdCaso())) {
+            throw contextoAlterado(
+                    "O conteudo clinico mudou durante o ajuste; tente novamente");
+        }
+
+        validarContextoInalterado(caso, fingerprintEsperado);
+        conteudo_clinico conteudoMaisRecente = conteudoRepository
+                .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
+                .orElseThrow(() -> contextoAlterado(
+                        "O conteudo clinico mudou durante o ajuste; tente novamente"));
+        if (!idConteudoEsperado.equals(conteudoMaisRecente.getIdConteudo())) {
+            throw contextoAlterado(
+                    "Um novo conteudo clinico foi criado durante o ajuste; tente novamente");
+        }
+
+        return operacao.apply(caso, conteudo);
+    }
+
+    private void bloquearPacienteEsperado(Long idPacienteEsperado) {
+        if (idPacienteEsperado == null) {
+            return;
+        }
+
+        pacienteRepository.findByIdForUpdate(idPacienteEsperado)
+                .orElseThrow(() -> contextoAlterado(
+                        "O paciente mudou durante a operacao com IA; tente novamente"));
+    }
+
+    private void validarContextoInalterado(
+            casos_clinicos caso,
+            String fingerprintEsperado) {
+        conteudo_clinico conteudoAtual = conteudoRepository
+                .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(caso.getIdCaso())
+                .orElse(null);
+        List<paciente> pacienteAtual = pacienteRepository
+                .findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(caso.getIdCaso())
+                .map(List::of)
+                .orElseGet(List::of);
+        String fingerprintAtual = CasoClinicoFingerprint.calcular(
+                caso,
+                conteudoAtual,
+                pacienteAtual);
+
+        if (!fingerprintEsperado.equals(fingerprintAtual)) {
+            throw contextoAlterado(
+                    "O caso clinico mudou durante a operacao com IA; tente novamente");
+        }
+    }
+
+    private ConflitoEstadoException contextoAlterado(String mensagem) {
+        return new ConflitoEstadoException(mensagem);
+    }
+}

@@ -15,6 +15,10 @@ public class desempenho_aluno_DTO {
 
     private Long totalRespostas;
 
+    private Long totalAvaliadas;
+
+    private Long totalPendentesRevisao;
+
     private Long totalCorretas;
 
     private Double aproveitamento;

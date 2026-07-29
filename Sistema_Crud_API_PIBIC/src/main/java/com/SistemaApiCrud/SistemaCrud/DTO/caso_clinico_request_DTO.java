@@ -44,6 +44,7 @@ public class caso_clinico_request_DTO {
     @Size(max = 120, message = "A especialidade deve ter no maximo 120 caracteres")
     private String especialidade;
 
+    @Size(max = 10000, message = "O objetivo de aprendizagem deve ter no maximo 10000 caracteres")
     private String objetivoAprendizagem;
 
     private NivelDificuldade nivelDificuldade;

@@ -2,24 +2,31 @@ package com.SistemaApiCrud.SistemaCrud.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.conteudo_clinico_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.exception.BadRequestException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 
 @Service
 public class conteudo_clinico_service {
 
-    @Autowired
-    private conteudo_clinico_repository repository;
+    private final conteudo_clinico_repository repository;
+    private final CasoClinicoLockService casoLockService;
 
-    @Autowired
-    private caso_clinico_repository casoRepository;
+    public conteudo_clinico_service(
+            conteudo_clinico_repository repository,
+            CasoClinicoLockService casoLockService) {
+        this.repository = repository;
+        this.casoLockService = casoLockService;
+    }
 
     public Page<conteudo_clinico_DTO> listar(Pageable pageable, Long idProfessor) {
         if (idProfessor == null) {
@@ -32,24 +39,30 @@ public class conteudo_clinico_service {
         return paraDTO(buscarEntityPorId(id));
     }
 
+    @Transactional
     public conteudo_clinico_DTO salvar(conteudo_clinico_DTO dto) {
-        conteudo_clinico conteudo = paraEntity(dto);
+        conteudo_clinico conteudo = new conteudo_clinico();
+        casos_clinicos caso = casoLockService.bloquearRascunho(idCasoObrigatorio(dto));
+        aplicarDados(dto, conteudo, caso);
         conteudo_clinico conteudoSalvo = repository.save(conteudo);
         return paraDTO(conteudoSalvo);
     }
 
+    @Transactional
     public conteudo_clinico_DTO atualizar(Long id, conteudo_clinico_DTO dto) {
-        buscarEntityPorId(id);
-
-        conteudo_clinico conteudo = paraEntity(dto);
-        conteudo.setIdConteudo(id);
-
-        conteudo_clinico conteudoAtualizado = repository.save(conteudo);
-        return paraDTO(conteudoAtualizado);
+        conteudo_clinico conteudo = buscarEntityPorIdParaAtualizacao(id);
+        Long idCasoAtual = conteudo.getCasoClinico().getIdCaso();
+        Long idCasoDestino = idCasoObrigatorio(dto);
+        Map<Long, casos_clinicos> casos = casoLockService.bloquearRascunhos(
+                List.of(idCasoAtual, idCasoDestino));
+        aplicarDados(dto, conteudo, casos.get(idCasoDestino));
+        return paraDTO(conteudo);
     }
 
+    @Transactional
     public void deletar(Long id) {
-        buscarEntityPorId(id);
+        conteudo_clinico conteudo = buscarEntityPorIdParaAtualizacao(id);
+        casoLockService.bloquearRascunho(conteudo.getCasoClinico().getIdCaso());
         repository.deleteById(id);
     }
 
@@ -71,28 +84,32 @@ public class conteudo_clinico_service {
         return dto;
     }
 
-    private conteudo_clinico paraEntity(conteudo_clinico_DTO dto) {
-        conteudo_clinico conteudo = new conteudo_clinico();
-
-        conteudo.setIdConteudo(dto.getIdConteudo());
-
-        if (dto.getIdCaso() != null) {
-            casos_clinicos caso = casoRepository.findById(dto.getIdCaso())
-                    .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
-            conteudo.setCasoClinico(caso);
-        }
-
+    private void aplicarDados(
+            conteudo_clinico_DTO dto,
+            conteudo_clinico conteudo,
+            casos_clinicos caso) {
+        conteudo.setCasoClinico(caso);
         conteudo.setSintomas(dto.getSintomas());
         conteudo.setContexto(dto.getContexto());
         conteudo.setExamClinico(dto.getExamClinico());
         conteudo.setAntecClinico(dto.getAntecClinico());
         conteudo.setDiagEsperado(dto.getDiagEsperado());
+    }
 
-        return conteudo;
+    private Long idCasoObrigatorio(conteudo_clinico_DTO dto) {
+        if (dto.getIdCaso() == null) {
+            throw new BadRequestException("O caso clinico e obrigatorio");
+        }
+        return dto.getIdCaso();
     }
 
     private conteudo_clinico buscarEntityPorId(Long id) {
         return repository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Conteudo clinico nao encontrado"));
+    }
+
+    private conteudo_clinico buscarEntityPorIdParaAtualizacao(Long id) {
+        return repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Conteudo clinico nao encontrado"));
     }
 }

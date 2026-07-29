@@ -31,6 +31,32 @@ public class ApiExceptionHandler {
         return Map.of("erro", ex.getMessage());
     }
 
+    @ExceptionHandler(ConflitoEstadoException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> tratarConflitoDeEstado(ConflitoEstadoException ex) {
+        return Map.of("erro", ex.getMessage());
+    }
+
+    @ExceptionHandler(AiProviderException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public Map<String, String> tratarFalhaDoProvedorIa(AiProviderException ex) {
+        return Map.of("erro", ex.getMessage());
+    }
+
+    @ExceptionHandler(ServicoIndisponivelException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Map<String, String> tratarServicoIndisponivel(ServicoIndisponivelException ex) {
+        return Map.of("erro", ex.getMessage());
+    }
+
+    @ExceptionHandler(CapacidadeIaEsgotadaException.class)
+    public ResponseEntity<Map<String, String>> tratarCapacidadeIaEsgotada(
+            CapacidadeIaEsgotadaException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getSegundosAteNovaTentativa()))
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Map<String, String> tratarAutenticacao() {
@@ -42,6 +68,19 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
                 .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(LimiteUsoIaException.class)
+    public ResponseEntity<Map<String, String>> tratarLimiteUsoIa(LimiteUsoIaException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getSegundosAteNovaTentativa()))
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TempoEsgotadoIaException.class)
+    @ResponseStatus(HttpStatus.GATEWAY_TIMEOUT)
+    public Map<String, String> tratarTempoEsgotadoIa(TempoEsgotadoIaException ex) {
+        return Map.of("erro", ex.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

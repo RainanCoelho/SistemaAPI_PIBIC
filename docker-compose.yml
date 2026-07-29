@@ -17,5 +17,31 @@ services:
       timeout: 5s
       retries: 5
 
+  freellmapi:
+    image: ghcr.io/tashfeenahmed/freellmapi:v0.6.3
+    container_name: sistemaapi_freellmapi
+    profiles: ["ia"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ENCRYPTION_KEY: ${FREELLMAPI_CHAVE_CRIPTOGRAFIA:?Defina FREELLMAPI_CHAVE_CRIPTOGRAFIA no arquivo .env}
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - freellmapi_data:/app/server/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/ping').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  freellmapi_data:

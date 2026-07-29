@@ -3,6 +3,7 @@ package com.SistemaApiCrud.SistemaCrud.DTO;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,5 +20,6 @@ public class resposta_pergunta_request_DTO {
     private Long idPergunta;
 
     @NotBlank(message = "A resposta marcada e obrigatoria")
+    @Size(max = 10000, message = "A resposta marcada deve ter no maximo 10000 caracteres")
     private String respostaMarcada;
 }

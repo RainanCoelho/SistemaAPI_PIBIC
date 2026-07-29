@@ -19,6 +19,10 @@ public class resultado_caso_DTO {
 
     private Integer totalRespondidas;
 
+    private Integer totalAvaliadas;
+
+    private Integer totalPendentesRevisao;
+
     private Integer totalCorretas;
 
     private Double nota;

@@ -1,7 +1,8 @@
 {
   "info": {
     "name": "SistemaAPI PIBIC",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Piloto privado: inicie o FreeLLMAPI v0.6.3 com `docker compose --profile ia up -d`, abra o painel em http://localhost:3001, cadastre as chaves dos provedores e copie a chave unificada para IA_CHAVE_API. Execute o backend com o perfil prod. Envie à IA somente dados sintéticos ou previamente desidentificados e submeta toda saída à revisão humana. Chamadas de IA podem responder 429 para limites locais, 503 com Retry-After quando a capacidade dos provedores estiver esgotada, 504 ao exceder o tempo limite e 413 quando o corpo ultrapassar o limite configurado."
   },
   "auth": {
     "type": "bearer",
@@ -19,27 +20,40 @@
       "value": "http://localhost:8080"
     },
     {
-      "key": "username",
-      "value": "admin"
+      "key": "usuario",
+      "value": "defina-o-usuario-do-piloto"
     },
     {
-      "key": "password",
-      "value": "admin-dev-123"
+      "key": "senha",
+      "value": "defina-a-senha-do-piloto"
     },
     {
       "key": "token",
       "value": ""
+    },
+    {
+      "key": "urlGatewayIa",
+      "value": "http://127.0.0.1:3001"
     }
   ],
   "item": [
     {
       "name": "OpenAPI",
+      "request": {
+        "method": "GET",
+        "description": "Requer um token ADMIN no perfil prod.",
+        "url": "{{baseUrl}}/openapi.yaml"
+      }
+    },
+    {
+      "name": "Saúde do gateway de IA",
       "auth": {
         "type": "noauth"
       },
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/openapi.yaml"
+        "description": "Verifica o FreeLLMAPI local. O painel na porta 3001 deve permanecer restrito à máquina ou à rede privada.",
+        "url": "{{urlGatewayIa}}/api/ping"
       }
     },
     {
@@ -57,10 +71,22 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+          "raw": "{\n  \"username\": \"{{usuario}}\",\n  \"password\": \"{{senha}}\"\n}"
         },
         "url": "{{baseUrl}}/auth/login"
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const resposta = pm.response.json();",
+              "pm.collectionVariables.set(\"token\", resposta.token);"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Listar usuarios",
@@ -158,6 +184,7 @@
       "name": "Gerar conteudo clinico com IA",
       "request": {
         "method": "POST",
+        "description": "Use somente dados sintéticos ou previamente desidentificados. A proteção automática não garante anonimização. Revise clinicamente a saída antes de publicar. Respostas operacionais: 413 para corpo excessivo, 429 para cota ou concorrência (respeite Retry-After) e 504 para tempo esgotado.",
         "header": [
           {
             "key": "Content-Type",
@@ -175,6 +202,7 @@
       "name": "Ajustar conteudo clinico com IA",
       "request": {
         "method": "POST",
+        "description": "Ajusta o conteúdo mais recente de um caso em rascunho. A saída exige revisão humana. Respostas operacionais: 413 para corpo excessivo, 429 para cota ou concorrência (respeite Retry-After) e 504 para tempo esgotado.",
         "header": [
           {
             "key": "Content-Type",
@@ -187,6 +215,92 @@
         },
         "url": "{{baseUrl}}/casos/1/ia/ajustar"
       }
+    },
+    {
+      "name": "Gerar perguntas com IA",
+      "request": {
+        "method": "POST",
+        "description": "Gera e persiste perguntas para conteúdo clínico manual ou gerado por IA. Tipos aceitos: MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO e CONDUTA_CLINICA. Revise perguntas, alternativas e gabaritos antes de publicar o caso. A API usa 502 para falha inesperada e 503 com Retry-After para capacidade temporariamente esgotada.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantidade\": 5,\n  \"tipo\": \"MULTIPLA_ESCOLHA\",\n  \"quantidadeAlternativas\": 4,\n  \"instrucoesAdicionais\": \"Priorize raciocinio diagnostico e conduta inicial.\"\n}"
+        },
+        "url": "{{baseUrl}}/casos/1/ia/perguntas/gerar"
+      },
+      "response": [
+        {
+          "name": "Limite de IA atingido",
+          "status": "Too Many Requests",
+          "code": 429,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Retry-After",
+              "value": "42",
+              "description": "Segundos até uma nova tentativa."
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"erro\": \"O limite de geracoes de IA por minuto foi atingido\"\n}"
+        },
+        {
+          "name": "Tempo de IA esgotado",
+          "status": "Gateway Timeout",
+          "code": 504,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"erro\": \"O provedor de IA excedeu o tempo limite da requisicao\"\n}"
+        },
+        {
+          "name": "Capacidade de IA esgotada",
+          "status": "Service Unavailable",
+          "code": 503,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Retry-After",
+              "value": "60",
+              "description": "Segundos até uma nova tentativa."
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"erro\": \"A capacidade gratuita dos provedores de IA foi esgotada temporariamente\"\n}"
+        },
+        {
+          "name": "Corpo da requisição excedido",
+          "status": "Content Too Large",
+          "code": 413,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"erro\": \"O corpo da requisicao excede o limite permitido\"\n}"
+        }
+      ]
     },
     {
       "name": "Publicar caso",
@@ -217,6 +331,32 @@
           "raw": "{\n  \"respostas\": [\n    {\n      \"idPergunta\": 1,\n      \"respostaMarcada\": \"A\"\n    }\n  ]\n}"
         },
         "url": "{{baseUrl}}/alunos/1/casos/1/responder"
+      }
+    },
+    {
+      "name": "Listar respostas pendentes de revisão",
+      "request": {
+        "method": "GET",
+        "description": "Lista de forma paginada as respostas discursivas e de conduta que aguardam revisão do professor responsável ou de um administrador.",
+        "url": "{{baseUrl}}/casos/1/respostas/pendentes-revisao?page=0&size=20&sort=dataResposta,asc"
+      }
+    },
+    {
+      "name": "Revisar resposta discursiva ou de conduta",
+      "request": {
+        "method": "PATCH",
+        "description": "Registra a decisão humana. Repetir a mesma decisão é idempotente; uma decisão diferente após a revisão retorna 409.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correta\": true\n}"
+        },
+        "url": "{{baseUrl}}/casos/1/respostas/1/revisao"
       }
     },
     {

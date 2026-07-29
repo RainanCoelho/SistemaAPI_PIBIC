@@ -2,24 +2,31 @@ package com.SistemaApiCrud.SistemaCrud.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.paciente_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.paciente;
+import com.SistemaApiCrud.SistemaCrud.exception.BadRequestException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 
 @Service
 public class paciente_service {
 
-    @Autowired
-    private paciente_repository repository;
+    private final paciente_repository repository;
+    private final CasoClinicoLockService casoLockService;
 
-    @Autowired
-    private caso_clinico_repository casoRepository;
+    public paciente_service(
+            paciente_repository repository,
+            CasoClinicoLockService casoLockService) {
+        this.repository = repository;
+        this.casoLockService = casoLockService;
+    }
 
     public Page<paciente_DTO> listar(Pageable pageable, Long idProfessor) {
         if (idProfessor == null) {
@@ -32,24 +39,30 @@ public class paciente_service {
         return paraDTO(buscarEntityPorId(id));
     }
 
+    @Transactional
     public paciente_DTO salvar(paciente_DTO dto) {
-        paciente paciente = paraEntity(dto);
+        paciente paciente = new paciente();
+        casos_clinicos caso = casoLockService.bloquearRascunho(idCasoObrigatorio(dto));
+        aplicarDados(dto, paciente, caso);
         paciente pacienteSalvo = repository.save(paciente);
         return paraDTO(pacienteSalvo);
     }
 
+    @Transactional
     public paciente_DTO atualizar(Long id, paciente_DTO dto) {
-        buscarEntityPorId(id);
-
-        paciente paciente = paraEntity(dto);
-        paciente.setIdPaciente(id);
-
-        paciente pacienteAtualizado = repository.save(paciente);
-        return paraDTO(pacienteAtualizado);
+        paciente paciente = buscarEntityPorIdParaAtualizacao(id);
+        Long idCasoAtual = paciente.getCasoClinico().getIdCaso();
+        Long idCasoDestino = idCasoObrigatorio(dto);
+        Map<Long, casos_clinicos> casos = casoLockService.bloquearRascunhos(
+                List.of(idCasoAtual, idCasoDestino));
+        aplicarDados(dto, paciente, casos.get(idCasoDestino));
+        return paraDTO(paciente);
     }
 
+    @Transactional
     public void deletar(Long id) {
-        buscarEntityPorId(id);
+        paciente paciente = buscarEntityPorIdParaAtualizacao(id);
+        casoLockService.bloquearRascunho(paciente.getCasoClinico().getIdCaso());
         repository.deleteById(id);
     }
 
@@ -73,17 +86,11 @@ public class paciente_service {
         return dto;
     }
 
-    private paciente paraEntity(paciente_DTO dto) {
-        paciente paciente = new paciente();
-
-        paciente.setIdPaciente(dto.getIdPaciente());
-
-        if (dto.getIdCaso() != null) {
-            casos_clinicos caso = casoRepository.findById(dto.getIdCaso())
-                    .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
-            paciente.setCasoClinico(caso);
-        }
-
+    private void aplicarDados(
+            paciente_DTO dto,
+            paciente paciente,
+            casos_clinicos caso) {
+        paciente.setCasoClinico(caso);
         paciente.setNome(dto.getNome());
         paciente.setProfissao(dto.getProfissao());
         paciente.setSexo(dto.getSexo());
@@ -91,12 +98,22 @@ public class paciente_service {
         paciente.setEstadoCivil(dto.getEstadoCivil());
         paciente.setAltura(dto.getAltura());
         paciente.setPeso(dto.getPeso());
+    }
 
-        return paciente;
+    private Long idCasoObrigatorio(paciente_DTO dto) {
+        if (dto.getIdCaso() == null) {
+            throw new BadRequestException("O caso clinico e obrigatorio");
+        }
+        return dto.getIdCaso();
     }
 
     private paciente buscarEntityPorId(Long id) {
         return repository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paciente nao encontrado"));
+    }
+
+    private paciente buscarEntityPorIdParaAtualizacao(Long id) {
+        return repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Paciente nao encontrado"));
     }
 }

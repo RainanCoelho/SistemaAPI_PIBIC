@@ -43,7 +43,7 @@ public class RespostaAluno {
     @Column(name = "resposta_marcada", nullable = false, columnDefinition = "TEXT")
     private String respostaMarcada;
 
-    @Column(nullable = false)
+    @Column
     private Boolean correta;
 
     @Column(name = "data_resposta", nullable = false)

@@ -3,7 +3,6 @@ package com.SistemaApiCrud.SistemaCrud.DTO;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonPropertyOrder({
-        "nome",
         "idade",
         "sexo",
         "estadoCivil",
@@ -13,21 +12,12 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 })
 public class PacienteGeradoIaDTO {
 
-    private String nome;
     private Integer idade;
     private String sexo;
     private String estadoCivil;
     private String profissao;
     private String peso;
     private String altura;
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
 
     public Integer getIdade() {
         return idade;

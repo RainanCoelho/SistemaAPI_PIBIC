@@ -1,13 +1,21 @@
 @baseUrl = http://localhost:8080
-@adminUser = admin
-@adminPass = admin-dev-123
-@professorUser = professor
-@professorPass = professor-dev-123
-@alunoUser = aluno
-@alunoPass = aluno-dev-123
+@usuarioAdmin = defina-o-usuario-admin-do-piloto
+@senhaAdmin = defina-a-senha-admin-do-piloto
+@usuarioProfessor = defina-o-usuario-professor-do-piloto
+@senhaProfessor = defina-a-senha-professor-do-piloto
+@usuarioAluno = defina-o-usuario-aluno-do-piloto
+@senhaAluno = defina-a-senha-aluno-do-piloto
+@urlGatewayIa = http://127.0.0.1:3001
 
 ### OpenAPI
+# Execute primeiro o login admin; no perfil prod a documentacao e restrita.
 GET {{baseUrl}}/openapi.yaml
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### Saude do gateway de IA local
+# Inicie antes com: docker compose --profile ia up -d
+# O painel administrativo fica em http://localhost:3001 e nao deve ser exposto publicamente.
+GET {{urlGatewayIa}}/api/ping
 
 ### Login admin
 # @name loginAdmin
@@ -15,8 +23,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "{{adminUser}}",
-  "password": "{{adminPass}}"
+  "username": "{{usuarioAdmin}}",
+  "password": "{{senhaAdmin}}"
 }
 
 ### Login professor
@@ -25,8 +33,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "{{professorUser}}",
-  "password": "{{professorPass}}"
+  "username": "{{usuarioProfessor}}",
+  "password": "{{senhaProfessor}}"
 }
 
 ### Login aluno
@@ -35,8 +43,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "{{alunoUser}}",
-  "password": "{{alunoPass}}"
+  "username": "{{usuarioAluno}}",
+  "password": "{{senhaAluno}}"
 }
 
 ### Listar usuarios de acesso
@@ -97,6 +105,14 @@ Content-Type: application/json
 }
 
 ### Gerar conteudo clinico com IA
+# Use somente dados sinteticos ou previamente desidentificados.
+# Respostas operacionais possiveis:
+# - 413: corpo acima de HTTP_LIMITE_CORPO_BYTES;
+# - 429: cota/concorrencia atingida; respeite Retry-After;
+# - 502: resposta invalida ou falha inesperada do provedor/gateway;
+# - 503: IA sem configuracao ou capacidade temporariamente esgotada;
+#   quando houver Retry-After, aguarde o intervalo informado;
+# - 504: IA excedeu IA_TEMPO_LIMITE.
 POST {{baseUrl}}/casos/1/ia/gerar
 Authorization: Bearer {{loginProfessor.response.body.$.token}}
 Content-Type: application/json
@@ -113,6 +129,7 @@ Content-Type: application/json
 }
 
 ### Ajustar conteudo clinico com IA
+# Revise a saida humana e clinicamente antes de publicar o caso.
 POST {{baseUrl}}/casos/1/ia/ajustar
 Authorization: Bearer {{loginProfessor.response.body.$.token}}
 Content-Type: application/json
@@ -120,6 +137,21 @@ Content-Type: application/json
 {
   "tipoAjuste": "SIMPLIFICAR",
   "instrucao": ""
+}
+
+### Gerar e persistir perguntas com IA
+# Funciona com conteudo clinico criado manualmente ou por IA.
+# Os tipos aceitos sao MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO,
+# DIAGNOSTICO e CONDUTA_CLINICA.
+POST {{baseUrl}}/casos/1/ia/perguntas/gerar
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "quantidade": 5,
+  "tipo": "MULTIPLA_ESCOLHA",
+  "quantidadeAlternativas": 4,
+  "instrucoesAdicionais": "Priorize raciocinio diagnostico e conduta inicial."
 }
 
 ### Criar pergunta com alternativas flexiveis
@@ -166,6 +198,19 @@ Content-Type: application/json
       "respostaMarcada": "A"
     }
   ]
+}
+
+### Listar respostas pendentes de revisao humana
+GET {{baseUrl}}/casos/1/respostas/pendentes-revisao?page=0&size=20&sort=dataResposta,asc
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+
+### Revisar resposta discursiva ou de conduta
+PATCH {{baseUrl}}/casos/1/respostas/1/revisao
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "correta": true
 }
 
 ### Desempenho do aluno

@@ -1,8 +1,11 @@
 package com.SistemaApiCrud.SistemaCrud;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,8 +20,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.SistemaApiCrud.SistemaCrud.DTO.AlternativaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.PerguntaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.PerguntasGeradasIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AlternativaPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
@@ -38,6 +45,7 @@ import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.service.PerguntaAiClient;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -74,6 +82,9 @@ class SecurityIntegrationTests {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @MockitoBean
+    private PerguntaAiClient perguntaAiClient;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -85,6 +96,24 @@ class SecurityIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FRONT_ORIGIN))
                 .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+    }
+
+    @Test
+    void devePreservarCabecalhoCorsAoRejeitarCorpoExcedido() throws Exception {
+        String corpoExcedido = "{\"username\":\""
+                + "a".repeat(1_048_576)
+                + "\",\"password\":\"senha\"}";
+
+        mockMvc.perform(post("/auth/login")
+                        .header(HttpHeaders.ORIGIN, FRONT_ORIGIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoExcedido))
+                .andExpect(status().is(413))
+                .andExpect(header().string(
+                        HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                        FRONT_ORIGIN))
+                .andExpect(jsonPath("$.erro").value(
+                        "O corpo da requisicao excede o limite permitido"));
     }
 
     @Test
@@ -146,6 +175,68 @@ class SecurityIntegrationTests {
         mockMvc.perform(get("/casos?idProfessor=" + (idProfessor + 999L))
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void professorDeveGerarEPersistirPerguntasComIaNoProprioCaso() throws Exception {
+        Map<String, Object> login = login("professor", "professor123");
+        String token = (String) login.get("token");
+        Professor professor = usuarioRepository.findByUsername("professor").orElseThrow().getProfessor();
+
+        casos_clinicos caso = new casos_clinicos();
+        caso.setProfessor(professor);
+        caso.setTitulo("Caso para gerar perguntas");
+        caso.setDificuldade("MEDIA");
+        caso.setDisciplina("Clinica");
+        caso.setAreaSaude("Medicina");
+        caso.setEstilo("Multipla escolha");
+        caso.setEspecialidade("Pneumologia");
+        caso.setStatus(StatusCasoClinico.RASCUNHO);
+        caso = casoRepository.save(caso);
+
+        conteudo_clinico conteudo = new conteudo_clinico();
+        conteudo.setCasoClinico(caso);
+        conteudo.setSintomas("Tosse e febre");
+        conteudo.setContexto("Atendimento na emergencia");
+        conteudo.setExamClinico("Crepitacoes pulmonares");
+        conteudo.setAntecClinico("Sem comorbidades");
+        conteudo.setDiagEsperado("Pneumonia comunitaria");
+        conteudoRepository.save(conteudo);
+
+        when(perguntaAiClient.gerarPerguntas(any(), any()))
+                .thenReturn(new PerguntasGeradasIaDTO(java.util.List.of(
+                        new PerguntaGeradaIaDTO(
+                                "Qual e a melhor conduta inicial?",
+                                "Iniciar o tratamento adequado.",
+                                "A",
+                                java.util.List.of(
+                                        new AlternativaGeradaIaDTO(
+                                                "A",
+                                                "Iniciar o tratamento indicado",
+                                                true),
+                                        new AlternativaGeradaIaDTO(
+                                                "B",
+                                                "Ignorar os sinais clinicos",
+                                                false))))));
+
+        mockMvc.perform(post("/casos/" + caso.getIdCaso() + "/ia/perguntas/gerar")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "quantidade": 1,
+                                  "tipo": "MULTIPLA_ESCOLHA",
+                                  "quantidadeAlternativas": 2
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].texto").value("Qual e a melhor conduta inicial?"))
+                .andExpect(jsonPath("$[0].alternativas.length()").value(2));
+
+        assertThat(perguntaRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
+                .singleElement()
+                .extracting(pergunta::getTexto)
+                .isEqualTo("Qual e a melhor conduta inicial?");
     }
 
     @Test
@@ -258,6 +349,16 @@ class SecurityIntegrationTests {
 
         mockMvc.perform(get("/pacientes/" + paciente.getIdPaciente())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/casos/" + caso.getIdCaso() + "/respostas/pendentes-revisao")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(patch("/casos/" + caso.getIdCaso() + "/respostas/1/revisao")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"correta\":true}"))
                 .andExpect(status().isForbidden());
     }
 

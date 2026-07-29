@@ -33,7 +33,8 @@ public class SecurityConfig {
             @Value("${app.docs.public:false}") boolean publicDocs,
             @Value("${app.security.require-https:false}") boolean requireHttps) throws Exception {
         if (requireHttps) {
-            http.requiresChannel(channel -> channel.anyRequest().requiresSecure());
+            http.redirectToHttps(configuracaoHttps -> {
+            });
         }
 
         http.cors(cors -> cors.configurationSource(corsConfigurationSource))

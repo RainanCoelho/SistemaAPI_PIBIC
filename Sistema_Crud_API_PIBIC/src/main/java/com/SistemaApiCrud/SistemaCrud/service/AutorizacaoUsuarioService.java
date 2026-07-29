@@ -118,10 +118,13 @@ public class AutorizacaoUsuarioService {
     }
 
     public void validarAcessoCaso(Long idCaso) {
-        Usuario usuario = getUsuarioAutenticado();
         casos_clinicos caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
+        validarAcessoCaso(caso);
+    }
 
+    public void validarAcessoCaso(casos_clinicos caso) {
+        Usuario usuario = getUsuarioAutenticado();
         if (usuario.getRole() == PapelUsuario.ADMIN) {
             return;
         }

@@ -1,10 +1,13 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,9 +25,11 @@ import com.SistemaApiCrud.SistemaCrud.entity.Aluno;
 import com.SistemaApiCrud.SistemaCrud.entity.RespostaAluno;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.BadRequestException;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
+import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.repository.alternativa_pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.aluno_repository;
@@ -36,26 +41,30 @@ import com.SistemaApiCrud.SistemaCrud.repository.resposta_aluno_repository;
 @Service
 public class resposta_aluno_service {
 
-    @Autowired
-    private resposta_aluno_repository repository;
+    private final resposta_aluno_repository repository;
+    private final aluno_repository alunoRepository;
+    private final caso_clinico_repository casoRepository;
+    private final pergunta_repository perguntaRepository;
+    private final alternativa_pergunta_repository alternativaRepository;
+    private final professor_repository professorRepository;
+    private final TentativaCasoService tentativaCasoService;
 
-    @Autowired
-    private aluno_repository alunoRepository;
-
-    @Autowired
-    private caso_clinico_repository casoRepository;
-
-    @Autowired
-    private pergunta_repository perguntaRepository;
-
-    @Autowired
-    private alternativa_pergunta_repository alternativaRepository;
-
-    @Autowired
-    private professor_repository professorRepository;
-
-    @Autowired
-    private TentativaCasoService tentativaCasoService;
+    public resposta_aluno_service(
+            resposta_aluno_repository repository,
+            aluno_repository alunoRepository,
+            caso_clinico_repository casoRepository,
+            pergunta_repository perguntaRepository,
+            alternativa_pergunta_repository alternativaRepository,
+            professor_repository professorRepository,
+            TentativaCasoService tentativaCasoService) {
+        this.repository = repository;
+        this.alunoRepository = alunoRepository;
+        this.casoRepository = casoRepository;
+        this.perguntaRepository = perguntaRepository;
+        this.alternativaRepository = alternativaRepository;
+        this.professorRepository = professorRepository;
+        this.tentativaCasoService = tentativaCasoService;
+    }
 
     @Transactional
     public resultado_caso_DTO responderCaso(Long idAluno, Long idCaso, responder_caso_request_DTO request) {
@@ -69,17 +78,26 @@ public class resposta_aluno_service {
             throw new BusinessException("O caso clinico ainda nao esta publicado");
         }
 
-        if (!repository.findByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, idCaso).isEmpty()) {
+        if (repository.existsByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, idCaso)) {
             throw new BusinessException("O aluno ja respondeu este caso clinico");
         }
 
         var tentativa = tentativaCasoService.validarPrazo(idAluno, idCaso);
         List<pergunta> perguntasDoCaso = perguntaRepository.findByCasoClinicoIdCaso(idCaso);
         validarRespostasCompletas(perguntasDoCaso, request);
+        Map<Long, pergunta> perguntasPorId = perguntasDoCaso.stream()
+                .collect(Collectors.toMap(pergunta::getId, Function.identity()));
+        Map<Long, List<AlternativaPergunta>> alternativasPorPergunta =
+                buscarAlternativasPorPergunta(perguntasDoCaso);
 
         List<RespostaAluno> respostas = request.getRespostas()
                 .stream()
-                .map(resposta -> criarResposta(aluno, caso, resposta))
+                .map(resposta -> criarResposta(
+                        aluno,
+                        caso,
+                        resposta,
+                        perguntasPorId,
+                        alternativasPorPergunta))
                 .toList();
 
         List<RespostaAluno> respostasSalvas = repository.saveAll(respostas);
@@ -129,10 +147,18 @@ public class resposta_aluno_service {
             throw new RecursoNaoEncontradoException("Aluno nao encontrado");
         }
 
-        long total = repository.countByAlunoIdAluno(idAluno);
+        long totalRespostas = repository.countByAlunoIdAluno(idAluno);
+        long avaliadas = repository.contarAvaliadasPorAluno(idAluno);
+        long pendentesRevisao = totalRespostas - avaliadas;
         long corretas = repository.countByAlunoIdAlunoAndCorretaTrue(idAluno);
 
-        return new desempenho_aluno_DTO(idAluno, total, corretas, calcularAproveitamento(total, corretas));
+        return new desempenho_aluno_DTO(
+                idAluno,
+                totalRespostas,
+                avaliadas,
+                pendentesRevisao,
+                corretas,
+                calcularAproveitamento(avaliadas, corretas));
     }
 
     public relatorio_desempenho_professor_DTO gerarRelatorioProfessor(Long idProfessor) {
@@ -140,17 +166,73 @@ public class resposta_aluno_service {
             throw new RecursoNaoEncontradoException("Professor nao encontrado");
         }
 
-        long total = repository.countByCasoClinicoProfessorId(idProfessor);
+        long totalRespostas = repository.countByCasoClinicoProfessorId(idProfessor);
+        long avaliadas = repository.contarAvaliadasPorProfessor(idProfessor);
+        long pendentesRevisao = totalRespostas - avaliadas;
         long corretas = repository.countByCasoClinicoProfessorIdAndCorretaTrue(idProfessor);
 
-        return new relatorio_desempenho_professor_DTO(idProfessor, total, corretas, calcularAproveitamento(total, corretas));
+        return new relatorio_desempenho_professor_DTO(
+                idProfessor,
+                totalRespostas,
+                avaliadas,
+                pendentesRevisao,
+                corretas,
+                calcularAproveitamento(avaliadas, corretas));
     }
 
-    private RespostaAluno criarResposta(Aluno aluno, casos_clinicos caso, resposta_pergunta_request_DTO respostaRequest) {
-        pergunta pergunta = perguntaRepository.findById(respostaRequest.getIdPergunta())
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Pergunta nao encontrada"));
+    public Page<resposta_aluno_DTO> listarPendentesRevisao(
+            Long idCaso,
+            Pageable paginacao) {
+        if (!casoRepository.existsById(idCaso)) {
+            throw new RecursoNaoEncontradoException("Caso clinico nao encontrado");
+        }
+        return repository.listarPendentesRevisaoPorCaso(idCaso, paginacao)
+                .map(this::paraDTO);
+    }
 
-        if (pergunta.getCasoClinico() == null || !pergunta.getCasoClinico().getIdCaso().equals(caso.getIdCaso())) {
+    @Transactional
+    public resposta_aluno_DTO revisarResposta(
+            Long idCaso,
+            Long idResposta,
+            Boolean correta) {
+        RespostaAluno resposta = repository.buscarPorIdParaAtualizacao(idResposta)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Resposta do aluno nao encontrada"));
+        if (resposta.getCasoClinico() == null
+                || !idCaso.equals(resposta.getCasoClinico().getIdCaso())) {
+            throw new BadRequestException(
+                    "A resposta informada nao pertence ao caso clinico");
+        }
+
+        pergunta perguntaRespondida = resposta.getPergunta();
+        TipoPergunta tipo = perguntaRespondida == null ? null : perguntaRespondida.getTipo();
+        if (tipo != TipoPergunta.DISCURSIVA && tipo != TipoPergunta.CONDUTA_CLINICA) {
+            throw new BusinessException(
+                    "Somente respostas discursivas ou de conduta aceitam revisao humana");
+        }
+
+        if (resposta.getCorreta() != null) {
+            if (resposta.getCorreta().equals(correta)) {
+                return paraDTO(resposta);
+            }
+            throw new ConflitoEstadoException(
+                    "A resposta ja foi revisada com um resultado diferente");
+        }
+
+        resposta.setCorreta(correta);
+        return paraDTO(repository.save(resposta));
+    }
+
+    private RespostaAluno criarResposta(
+            Aluno aluno,
+            casos_clinicos caso,
+            resposta_pergunta_request_DTO respostaRequest,
+            Map<Long, pergunta> perguntasPorId,
+            Map<Long, List<AlternativaPergunta>> alternativasPorPergunta) {
+        pergunta pergunta = perguntasPorId.get(respostaRequest.getIdPergunta());
+        if (pergunta == null
+                || pergunta.getCasoClinico() == null
+                || !pergunta.getCasoClinico().getIdCaso().equals(caso.getIdCaso())) {
             throw new BadRequestException("A pergunta informada nao pertence ao caso clinico");
         }
 
@@ -159,26 +241,119 @@ public class resposta_aluno_service {
         respostaAluno.setCasoClinico(caso);
         respostaAluno.setPergunta(pergunta);
         respostaAluno.setRespostaMarcada(respostaRequest.getRespostaMarcada());
-        respostaAluno.setCorreta(compararResposta(pergunta, respostaRequest.getRespostaMarcada()));
+        respostaAluno.setCorreta(compararResposta(
+                pergunta,
+                respostaRequest.getRespostaMarcada(),
+                alternativasPorPergunta.getOrDefault(pergunta.getId(), List.of())));
 
         return respostaAluno;
     }
 
-    private boolean compararResposta(pergunta pergunta, String respostaMarcada) {
-        List<AlternativaPergunta> alternativas = alternativaRepository.findByPerguntaIdOrderByLetra(pergunta.getId());
+    private Map<Long, List<AlternativaPergunta>> buscarAlternativasPorPergunta(
+            List<pergunta> perguntas) {
+        List<Long> ids = perguntas.stream().map(pergunta::getId).toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+
+        return alternativaRepository.findByPerguntaIdInOrderByPerguntaIdAscLetraAsc(ids)
+                .stream()
+                .collect(Collectors.groupingBy(alternativa -> alternativa.getPergunta().getId()));
+    }
+
+    private Boolean compararResposta(
+            pergunta pergunta,
+            String respostaMarcada,
+            List<AlternativaPergunta> alternativas) {
+        TipoPergunta tipo = pergunta.getTipo();
+        if (tipo == null) {
+            return false;
+        }
+
+        return switch (tipo) {
+            case MULTIPLA_ESCOLHA ->
+                compararMultiplaEscolha(pergunta, respostaMarcada, alternativas);
+            case VERDADEIRO_FALSO ->
+                compararVerdadeiroOuFalso(pergunta, respostaMarcada);
+            case DIAGNOSTICO ->
+                compararDiagnostico(pergunta, respostaMarcada);
+            case DISCURSIVA, CONDUTA_CLINICA -> null;
+        };
+    }
+
+    private boolean compararMultiplaEscolha(
+            pergunta pergunta,
+            String respostaMarcada,
+            List<AlternativaPergunta> alternativas) {
         if (!alternativas.isEmpty()) {
             return alternativas.stream()
                     .anyMatch(alternativa -> Boolean.TRUE.equals(alternativa.getCorreta())
                             && correspondeResposta(alternativa, respostaMarcada));
         }
 
-        String gabarito = pergunta.getGabarito();
+        String gabarito = obterGabarito(pergunta);
+        return gabarito != null && respostaMarcada != null && gabarito.trim().equalsIgnoreCase(respostaMarcada.trim());
+    }
 
-        if (gabarito == null || gabarito.isBlank()) {
-            gabarito = pergunta.getResposta();
+    private boolean compararVerdadeiroOuFalso(
+            pergunta pergunta,
+            String respostaMarcada) {
+        String gabaritoNormalizado = normalizarAcentosEEspacos(obterGabarito(pergunta));
+        String respostaNormalizada = normalizarAcentosEEspacos(respostaMarcada);
+
+        return eVerdadeiroOuFalso(gabaritoNormalizado)
+                && eVerdadeiroOuFalso(respostaNormalizada)
+                && gabaritoNormalizado.equals(respostaNormalizada);
+    }
+
+    private boolean compararDiagnostico(
+            pergunta pergunta,
+            String respostaMarcada) {
+        String gabarito = obterGabarito(pergunta);
+        String respostaNormalizada = normalizarDiagnostico(respostaMarcada);
+        if (gabarito == null || respostaNormalizada.isBlank()) {
+            return false;
         }
 
-        return gabarito != null && respostaMarcada != null && gabarito.trim().equalsIgnoreCase(respostaMarcada.trim());
+        return List.of(gabarito.split("\\|"))
+                .stream()
+                .map(this::normalizarDiagnostico)
+                .filter(alias -> !alias.isBlank())
+                .anyMatch(alias -> alias.equals(respostaNormalizada));
+    }
+
+    private String obterGabarito(pergunta pergunta) {
+        String gabarito = pergunta.getGabarito();
+        return gabarito == null || gabarito.isBlank()
+                ? pergunta.getResposta()
+                : gabarito;
+    }
+
+    private boolean eVerdadeiroOuFalso(String valor) {
+        return "verdadeiro".equals(valor) || "falso".equals(valor);
+    }
+
+    private String normalizarDiagnostico(String valor) {
+        String valorNormalizado = normalizarAcentosEEspacos(valor)
+                .replace('\u2212', '-')
+                .replaceAll("(?<=[\\p{L}\\p{N}])\\s*\\+(?=\\s|$|[/,;])", " positivo ")
+                .replaceAll("(?<=[\\p{L}\\p{N}])\\s*-(?=\\s|$|[/,;])", " negativo ");
+        return valorNormalizado
+                .replaceAll("[\\p{P}\\p{S}]+", " ")
+                .replaceAll("\\s+", " ")
+                .strip();
+    }
+
+    private String normalizarAcentosEEspacos(String valor) {
+        if (valor == null) {
+            return "";
+        }
+
+        return Normalizer.normalize(valor, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .strip();
     }
 
     private boolean correspondeResposta(AlternativaPergunta alternativa, String respostaMarcada) {
@@ -195,22 +370,34 @@ public class resposta_aluno_service {
     }
 
     private resultado_caso_DTO montarResultado(Long idAluno, Long idCaso, List<RespostaAluno> respostas) {
-        int total = respostas.size();
+        int totalRespondidas = respostas.size();
+        int avaliadas = (int) respostas.stream()
+                .filter(resposta -> resposta.getCorreta() != null)
+                .count();
+        int pendentesRevisao = totalRespondidas - avaliadas;
         int corretas = (int) respostas.stream().filter(resposta -> Boolean.TRUE.equals(resposta.getCorreta())).count();
 
         List<resposta_aluno_DTO> respostasDTO = respostas.stream()
                 .map(this::paraDTO)
                 .toList();
 
-        return new resultado_caso_DTO(idAluno, idCaso, total, corretas, calcularAproveitamento(total, corretas), respostasDTO);
+        return new resultado_caso_DTO(
+                idAluno,
+                idCaso,
+                totalRespondidas,
+                avaliadas,
+                pendentesRevisao,
+                corretas,
+                calcularAproveitamento(avaliadas, corretas),
+                respostasDTO);
     }
 
-    private Double calcularAproveitamento(long total, long corretas) {
-        if (total == 0) {
+    private Double calcularAproveitamento(long totalAvaliadas, long corretas) {
+        if (totalAvaliadas == 0) {
             return 0.0;
         }
 
-        return (corretas * 100.0) / total;
+        return (corretas * 100.0) / totalAvaliadas;
     }
 
     private resposta_aluno_DTO paraDTO(RespostaAluno resposta) {

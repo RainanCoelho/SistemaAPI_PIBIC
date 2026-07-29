@@ -20,6 +20,7 @@ public class alternativa_pergunta_DTO {
     private String letra;
 
     @NotBlank(message = "O texto da alternativa e obrigatorio")
+    @Size(max = 10000, message = "O texto da alternativa deve ter no maximo 10000 caracteres")
     private String texto;
 
     private Boolean correta;

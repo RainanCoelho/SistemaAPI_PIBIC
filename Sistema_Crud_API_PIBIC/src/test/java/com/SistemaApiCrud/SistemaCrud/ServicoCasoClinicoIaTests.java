@@ -4,12 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
@@ -22,79 +25,87 @@ import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
 import com.SistemaApiCrud.SistemaCrud.entity.paciente;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
-import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
+import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
 import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoAiClient;
-import com.SistemaApiCrud.SistemaCrud.service.GroqService;
+import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoIaTransactionService;
+import com.SistemaApiCrud.SistemaCrud.service.ProtecaoDadosClinicosIa;
+import com.SistemaApiCrud.SistemaCrud.service.ServicoCasoClinicoIa;
 
-class GroqServiceTests {
+class ServicoCasoClinicoIaTests {
 
     private final CasoClinicoAiClient aiClient = mock(CasoClinicoAiClient.class);
     private final caso_clinico_repository casoRepository = mock(caso_clinico_repository.class);
     private final conteudo_clinico_repository conteudoRepository = mock(conteudo_clinico_repository.class);
     private final paciente_repository pacienteRepository = mock(paciente_repository.class);
+    private final CasoClinicoIaTransactionService transactionService =
+            mock(CasoClinicoIaTransactionService.class);
 
     @Test
     void deveCompletarCamposVaziosComRespostaDaIaEPreservarDadosDoProfessor() {
-        GroqService service = serviceComChave();
-        when(aiClient.gerarConteudo(any())).thenReturn(respostaIa());
+        ServicoCasoClinicoIa servico = servicoComChave();
+        when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIa());
 
         casos_clinicos caso = criarCaso();
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
-        when(pacienteRepository.findByCasoClinicoIdCaso(1L)).thenReturn(List.of());
+        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(Optional.empty());
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> {
             conteudo_clinico conteudo = invocation.getArgument(0);
             conteudo.setIdConteudo(10L);
             return conteudo;
         });
 
-        CasoClinicoRequestDTO request = new CasoClinicoRequestDTO(
+        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(
                 "Febre relatada pelo professor",
                 null,
                 null,
                 null,
                 null);
 
-        CasoClinicoResponseDTO response = service.gerarConteudo(1L, request);
+        CasoClinicoResponseDTO resposta = servico.gerarConteudo(1L, requisicao);
 
-        assertThat(response.getIdConteudo()).isEqualTo(10L);
-        assertThat(response.getIdCaso()).isEqualTo(1L);
-        assertThat(response.getSintomas()).isEqualTo("Febre relatada pelo professor");
-        assertThat(response.getContexto()).isEqualTo("Paciente adulto em atendimento ambulatorial");
-        assertThat(response.getExamClinico()).isEqualTo("Ausculta pulmonar com sibilos");
-        assertThat(response.getAntecClinico()).isEqualTo("Historico de asma");
-        assertThat(response.getDiagEsperado()).isEqualTo("Exacerbacao asmatica");
+        assertThat(resposta.getIdConteudo()).isEqualTo(10L);
+        assertThat(resposta.getIdCaso()).isEqualTo(1L);
+        assertThat(resposta.getSintomas()).isEqualTo("Febre relatada pelo professor");
+        assertThat(resposta.getContexto()).isEqualTo("Paciente adulto em atendimento ambulatorial");
+        assertThat(resposta.getExamClinico()).isEqualTo("Ausculta pulmonar com sibilos");
+        assertThat(resposta.getAntecClinico()).isEqualTo("Historico de asma");
+        assertThat(resposta.getDiagEsperado()).isEqualTo("Exacerbacao asmatica");
     }
 
     @Test
-    void deveExigirChaveGroqQuandoExistemCamposParaGerar() {
-        GroqService service = new GroqService(
+    void deveExigirChaveIaQuandoExistemCamposParaGerar() {
+        ServicoCasoClinicoIa servico = new ServicoCasoClinicoIa(
                 aiClient,
                 casoRepository,
                 conteudoRepository,
                 pacienteRepository,
+                transactionService,
+                new ProtecaoDadosClinicosIa(),
                 "");
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(criarCaso()));
 
-        CasoClinicoRequestDTO request = new CasoClinicoRequestDTO(
+        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(
                 "Sintoma informado",
                 null,
                 "Exame informado",
                 "Antecedente informado",
                 "Diagnostico informado");
 
-        assertThatThrownBy(() -> service.gerarConteudo(1L, request))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage("Configure a variavel GROQ_API_KEY antes de gerar conteudo com IA");
+        assertThatThrownBy(() -> servico.gerarConteudo(1L, requisicao))
+                .isInstanceOf(ServicoIndisponivelException.class)
+                .hasMessage("Configure a variavel IA_CHAVE_API antes de gerar conteudo com IA");
     }
 
     @Test
     void deveAjustarConteudoClinicoExistenteComIa() {
-        GroqService service = serviceComChave();
-        when(aiClient.gerarConteudo(any())).thenReturn(respostaIa());
+        ServicoCasoClinicoIa servico = servicoComChave();
+        when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIa());
 
         casos_clinicos caso = criarCaso();
         conteudo_clinico conteudoAtual = new conteudo_clinico();
@@ -107,24 +118,25 @@ class GroqServiceTests {
         conteudoAtual.setDiagEsperado("Exacerbacao asmatica");
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
-        when(pacienteRepository.findByCasoClinicoIdCaso(1L)).thenReturn(List.of());
+        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(Optional.empty());
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudoAtual));
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CasoClinicoResponseDTO response = service.ajustarConteudo(
+        CasoClinicoResponseDTO resposta = servico.ajustarConteudo(
                 1L,
                 new CasoClinicoAjusteRequestDTO("SIMPLIFICAR", null));
 
-        assertThat(response.getIdConteudo()).isEqualTo(22L);
-        assertThat(response.getContexto()).isEqualTo("Paciente adulto em atendimento ambulatorial");
+        assertThat(resposta.getIdConteudo()).isEqualTo(22L);
+        assertThat(resposta.getContexto()).isEqualTo("Paciente adulto em atendimento ambulatorial");
         assertThat(conteudoAtual.getExamClinico()).isEqualTo("Ausculta pulmonar com sibilos");
     }
 
     @Test
     void deveAtualizarPacienteEObjetivoQuandoIaComplementaInformacoes() {
-        GroqService service = serviceComChave();
-        when(aiClient.gerarConteudo(any())).thenReturn(respostaIaComComplementos());
+        ServicoCasoClinicoIa servico = servicoComChave();
+        when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIaComComplementos());
 
         casos_clinicos caso = criarCaso();
         caso.setObjetivoAprendizagem(null);
@@ -132,7 +144,7 @@ class GroqServiceTests {
         paciente paciente = new paciente();
         paciente.setIdPaciente(5L);
         paciente.setCasoClinico(caso);
-        paciente.setNome("NAO_INFORMADO");
+        paciente.setNome("Maria Sigilosa");
         paciente.setIdade(0);
         paciente.setSexo(Sexo.NAO_INFORMADO);
         paciente.setEstadoCivil(EstadoCivil.NAO_INFORMADO);
@@ -142,7 +154,8 @@ class GroqServiceTests {
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(casoRepository.save(any(casos_clinicos.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(pacienteRepository.findByCasoClinicoIdCaso(1L)).thenReturn(List.of(paciente));
+        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(Optional.of(paciente));
         when(pacienteRepository.save(any(paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> {
             conteudo_clinico conteudo = invocation.getArgument(0);
@@ -150,26 +163,42 @@ class GroqServiceTests {
             return conteudo;
         });
 
-        CasoClinicoRequestDTO request = new CasoClinicoRequestDTO(null, null, null, null, null);
-        request.setPermitirComplementoIa(true);
+        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(null, null, null, null, null);
+        requisicao.setPermitirComplementoIa(true);
+        requisicao.setInformacoesAdicionaisPaciente(
+                "CPF: 123.456.789-00; outro CPF 98765432100; "
+                        + "CNS 123456789012345; e-mail: maria.sigilo@example.com");
 
-        CasoClinicoResponseDTO response = service.gerarConteudo(1L, request);
+        CasoClinicoResponseDTO resposta = servico.gerarConteudo(1L, requisicao);
 
-        assertThat(response.getIdConteudo()).isEqualTo(33L);
+        assertThat(resposta.getIdConteudo()).isEqualTo(33L);
         assertThat(caso.getObjetivoAprendizagem()).isEqualTo("Identificar sinais de exacerbação asmática e definir conduta inicial.");
-        assertThat(paciente.getNome()).isEqualTo("Carlos Henrique");
+        assertThat(paciente.getNome()).isEqualTo("Maria Sigilosa");
         assertThat(paciente.getIdade()).isEqualTo(45);
         assertThat(paciente.getSexo()).isEqualTo(Sexo.MASCULINO);
         assertThat(paciente.getEstadoCivil()).isEqualTo(EstadoCivil.CASADO);
         assertThat(paciente.getProfissao()).isEqualTo("Professor");
         assertThat(paciente.getPeso()).isEqualTo("80 kg");
         assertThat(paciente.getAltura()).isEqualTo("170 cm");
+
+        ArgumentCaptor<String> instrucoesSistema = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> contexto = ArgumentCaptor.forClass(String.class);
+        verify(aiClient).gerarConteudo(instrucoesSistema.capture(), contexto.capture());
+        assertThat(instrucoesSistema.getValue()).contains("dados nao confiaveis");
+        assertThat(contexto.getValue())
+                .contains("[DADO_REMOVIDO]")
+                .doesNotContain(
+                        "Maria Sigilosa",
+                        "123.456.789-00",
+                        "98765432100",
+                        "123456789012345",
+                        "maria.sigilo@example.com");
     }
 
     @Test
-    void deveAtualizarPacienteQuandoAjusteSolicitaMudancaNosDados() {
-        GroqService service = serviceComChave();
-        when(aiClient.gerarConteudo(any())).thenReturn(respostaIaAjustandoPaciente());
+    void devePreservarPacienteQuandoAjusteTentaMudarDadosCadastrais() {
+        ServicoCasoClinicoIa servico = servicoComChave();
+        when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIaAjustandoPaciente());
 
         casos_clinicos caso = criarCaso();
         conteudo_clinico conteudoAtual = new conteudo_clinico();
@@ -194,28 +223,57 @@ class GroqServiceTests {
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(casoRepository.save(any(casos_clinicos.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(pacienteRepository.findByCasoClinicoIdCaso(1L)).thenReturn(List.of(paciente));
+        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(Optional.of(paciente));
         when(pacienteRepository.save(any(paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudoAtual));
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CasoClinicoResponseDTO response = service.ajustarConteudo(
+        CasoClinicoResponseDTO resposta = servico.ajustarConteudo(
                 1L,
                 new CasoClinicoAjusteRequestDTO("PERSONALIZADO", "Paciente precisa ter menos que 25 anos"));
 
-        assertThat(response.getIdConteudo()).isEqualTo(44L);
-        assertThat(paciente.getIdade()).isEqualTo(22);
-        assertThat(conteudoAtual.getContexto()).contains("22 anos");
+        assertThat(resposta.getIdConteudo()).isEqualTo(44L);
+        assertThat(resposta.getDiagEsperado()).isEqualTo("Angina instavel");
+        assertThat(conteudoAtual.getDiagEsperado()).isEqualTo("Angina instavel");
+        assertThat(paciente.getIdade()).isEqualTo(55);
+        assertThat(caso.getObjetivoAprendizagem()).isEqualTo("Avaliar conduta respiratoria");
     }
 
-    private GroqService serviceComChave() {
-        return new GroqService(
+    private ServicoCasoClinicoIa servicoComChave() {
+        configurarExecutorTransacional();
+        return new ServicoCasoClinicoIa(
                 aiClient,
                 casoRepository,
                 conteudoRepository,
                 pacienteRepository,
+                transactionService,
+                new ProtecaoDadosClinicosIa(),
                 "chave-teste");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void configurarExecutorTransacional() {
+        when(transactionService.executarGeracao(any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    Long idCaso = invocation.getArgument(0);
+                    Function<casos_clinicos, CasoClinicoResponseDTO> operacao =
+                            invocation.getArgument(3);
+                    casos_clinicos caso = casoRepository.findById(idCaso).orElseThrow();
+                    return operacao.apply(caso);
+                });
+        when(transactionService.executarAjuste(any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    Long idCaso = invocation.getArgument(0);
+                    BiFunction<casos_clinicos, conteudo_clinico, CasoClinicoResponseDTO> operacao =
+                            invocation.getArgument(4);
+                    casos_clinicos caso = casoRepository.findById(idCaso).orElseThrow();
+                    conteudo_clinico conteudo = conteudoRepository
+                            .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
+                            .orElseThrow();
+                    return operacao.apply(caso, conteudo);
+                });
     }
 
     private CasoClinicoGeradoIaDTO respostaIa() {
@@ -235,7 +293,6 @@ class GroqServiceTests {
         resposta.setExamClinico("Sibilos difusos");
         resposta.setObjetivoAprendizagem("Identificar sinais de exacerbação asmática e definir conduta inicial.");
         resposta.setPaciente(pacienteGerado(
-                "Carlos Henrique",
                 45,
                 "MASCULINO",
                 "CASADO",
@@ -251,10 +308,9 @@ class GroqServiceTests {
         resposta.setContexto("Paciente João Silva, 22 anos, sexo masculino, casado, engenheiro, com peso de 80kg e altura de 1.75m.");
         resposta.setExamClinico("ECG com alteracoes isquemicas");
         resposta.setAntecClinico("Hipertensao");
-        resposta.setDiagEsperado("Angina instavel");
+        resposta.setDiagEsperado("Infarto agudo do miocardio");
         resposta.setObjetivoAprendizagem("Avaliar conduta respiratoria");
         resposta.setPaciente(pacienteGerado(
-                "João Silva",
                 22,
                 "MASCULINO",
                 "CASADO",
@@ -265,7 +321,6 @@ class GroqServiceTests {
     }
 
     private PacienteGeradoIaDTO pacienteGerado(
-            String nome,
             Integer idade,
             String sexo,
             String estadoCivil,
@@ -273,7 +328,6 @@ class GroqServiceTests {
             String peso,
             String altura) {
         PacienteGeradoIaDTO paciente = new PacienteGeradoIaDTO();
-        paciente.setNome(nome);
         paciente.setIdade(idade);
         paciente.setSexo(sexo);
         paciente.setEstadoCivil(estadoCivil);
@@ -286,6 +340,7 @@ class GroqServiceTests {
     private casos_clinicos criarCaso() {
         casos_clinicos caso = new casos_clinicos();
         caso.setIdCaso(1L);
+        caso.setStatus(StatusCasoClinico.RASCUNHO);
         caso.setProfessor(new Professor(1L, "Dra. Ana", "ana@email.com", "Clinica"));
         caso.setTitulo("Caso respiratorio");
         caso.setDificuldade("MEDIA");

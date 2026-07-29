@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,28 +24,37 @@ public class pergunta_request_DTO {
     private Long idCaso;
 
     @NotBlank(message = "Pergunta vazia")
+    @Size(max = 10000, message = "A pergunta deve ter no maximo 10000 caracteres")
     private String texto;
 
+    @Size(max = 10000)
     private String alternativaA;
 
+    @Size(max = 10000)
     private String alternativaB;
 
+    @Size(max = 10000)
     private String alternativaC;
 
+    @Size(max = 10000)
     private String alternativaD;
 
+    @Size(max = 10000)
     private String alternativaE;
 
     @Valid
+    @Size(max = 5, message = "A pergunta deve ter no maximo 5 alternativas")
     private List<alternativa_pergunta_DTO> alternativas;
 
     @NotBlank(message = "A resposta e obrigatoria")
+    @Size(max = 10000, message = "A resposta deve ter no maximo 10000 caracteres")
     private String resposta;
 
     @NotNull(message = "O tipo da pergunta e obrigatorio")
     private TipoPergunta tipo;
 
     @NotBlank(message = "O gabarito e obrigatorio")
+    @Size(max = 10000, message = "O gabarito deve ter no maximo 10000 caracteres")
     private String gabarito;
 
 }

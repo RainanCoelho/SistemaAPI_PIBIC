@@ -4,5 +4,5 @@ import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
 
 public interface CasoClinicoAiClient {
 
-    CasoClinicoGeradoIaDTO gerarConteudo(String prompt);
+    CasoClinicoGeradoIaDTO gerarConteudo(String instrucoesSistema, String contexto);
 }
