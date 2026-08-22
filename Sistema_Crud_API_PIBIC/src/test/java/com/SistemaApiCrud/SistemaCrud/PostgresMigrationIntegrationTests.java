@@ -53,16 +53,30 @@ class PostgresMigrationIntegrationTests {
         List<String> indices = jdbcTemplate.queryForList(
                 "select indexname from pg_indexes where schemaname = 'public'",
                 String.class);
+        List<String> tabelas = jdbcTemplate.queryForList(
+                "select tablename from pg_tables where schemaname = 'public'",
+                String.class);
 
         assertThat(banco)
                 .startsWith("sistemacrud_")
                 .endsWith("test");
-        assertThat(versao).isEqualTo("8");
+        assertThat(versao).isEqualTo("12");
         assertThat(indices).contains(
                 "idx_alternativa_pergunta_pergunta_letra",
                 "idx_conteudo_caso_recente",
                 "idx_resposta_caso",
-                "idx_resposta_aluno_data");
+                "idx_resposta_aluno_data",
+                "idx_revisao_resposta_data",
+                "idx_auditoria_ia_caso_data",
+                "idx_tentativa_login_expiracao",
+                "idx_cota_uso_ia_atualizacao",
+                "idx_lease_uso_ia_expiracao");
+        assertThat(tabelas).contains(
+                "revisao_resposta_aluno",
+                "auditoria_geracao_ia",
+                "tentativa_login",
+                "cota_uso_ia",
+                "lease_uso_ia");
         assertThat(indices).doesNotContain(
                 "idx_conteudo_caso",
                 "idx_resposta_aluno_caso",
