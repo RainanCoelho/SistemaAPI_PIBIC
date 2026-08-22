@@ -26,6 +26,11 @@ class LegacyAlternativesMigrationTests {
             migrarAteVersao12(dataSource);
             JdbcTemplate jdbc = new JdbcTemplate(dataSource);
             inserirCasoEProfessor(jdbc);
+            jdbc.update("""
+                    UPDATE casos_clinicos
+                    SET dificuldade = 'FACIL', nivel_dificuldade = NULL
+                    WHERE id_caso = 200
+                    """);
             inserirPerguntaLegada(jdbc, "Opcao antiga A", "Opcao antiga B");
             jdbc.update("""
                     INSERT INTO alternativa_pergunta
@@ -50,7 +55,19 @@ class LegacyAlternativesMigrationTests {
                     .containsEntry("LETRA", "B")
                     .containsEntry("TEXTO", "Opcao B ja normalizada")
                     .containsEntry("CORRETA", false);
-            assertThat(ultimaVersao(jdbc)).isEqualTo("13");
+            assertThat(jdbc.queryForObject(
+                    "SELECT nivel_dificuldade FROM casos_clinicos WHERE id_caso = 200",
+                    String.class)).isEqualTo("BAIXA");
+            assertThat(colunasDaTabela(jdbc, "PERGUNTA")).doesNotContain(
+                    "ALTERNATIVA_A",
+                    "ALTERNATIVA_B",
+                    "ALTERNATIVA_C",
+                    "ALTERNATIVA_D",
+                    "ALTERNATIVA_E");
+            assertThat(colunasDaTabela(jdbc, "CASOS_CLINICOS"))
+                    .contains("NIVEL_DIFICULDADE")
+                    .doesNotContain("DIFICULDADE");
+            assertThat(ultimaVersao(jdbc)).isEqualTo("14");
         }
     }
 
@@ -67,6 +84,41 @@ class LegacyAlternativesMigrationTests {
             assertThatThrownBy(() -> migrarAteUltimaVersao(dataSource))
                     .isInstanceOf(FlywayException.class)
                     .hasMessageContaining("V13__migrar_alternativas_legadas.sql");
+        }
+    }
+
+    @Test
+    void deveInterromperMigracaoQuandoDificuldadeLegadaForDesconhecida()
+            throws Exception {
+        HikariDataSource dataSource = novoBanco();
+        try (dataSource) {
+            migrarAteVersao12(dataSource);
+            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+            inserirCasoEProfessor(jdbc);
+            inserirPerguntaLegada(jdbc, "Opcao A", "Opcao B");
+            jdbc.update("""
+                    UPDATE casos_clinicos
+                    SET dificuldade = 'INDEFINIDA', nivel_dificuldade = NULL
+                    WHERE id_caso = 200
+                    """);
+
+            assertThatThrownBy(() -> migrarAteUltimaVersao(dataSource))
+                    .isInstanceOf(FlywayException.class)
+                    .hasMessageContaining(
+                            "V14__remover_legados_e_consolidar_dificuldade.sql");
+
+            jdbc.update("""
+                    UPDATE casos_clinicos
+                    SET dificuldade = 'MODERADA'
+                    WHERE id_caso = 200
+                    """);
+            repararMigracoes(dataSource);
+            migrarAteUltimaVersao(dataSource);
+
+            assertThat(jdbc.queryForObject(
+                    "SELECT nivel_dificuldade FROM casos_clinicos WHERE id_caso = 200",
+                    String.class)).isEqualTo("MEDIA");
+            assertThat(ultimaVersao(jdbc)).isEqualTo("14");
         }
     }
 
@@ -97,6 +149,14 @@ class LegacyAlternativesMigrationTests {
                 .locations("classpath:db/migration")
                 .load()
                 .migrate();
+    }
+
+    private void repararMigracoes(DataSource dataSource) {
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .load()
+                .repair();
     }
 
     private void inserirCasoEProfessor(JdbcTemplate jdbc) {
@@ -168,5 +228,13 @@ class LegacyAlternativesMigrationTests {
                 ORDER BY "installed_rank" DESC
                 LIMIT 1
                 """, String.class);
+    }
+
+    private List<String> colunasDaTabela(JdbcTemplate jdbc, String tabela) {
+        return jdbc.queryForList("""
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = 'PUBLIC' AND TABLE_NAME = ?
+                """, String.class, tabela);
     }
 }

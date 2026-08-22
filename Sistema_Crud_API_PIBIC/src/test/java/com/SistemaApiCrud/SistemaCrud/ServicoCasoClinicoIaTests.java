@@ -25,6 +25,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
 import com.SistemaApiCrud.SistemaCrud.entity.paciente;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
@@ -362,7 +363,7 @@ class ServicoCasoClinicoIaTests {
         caso.setStatus(StatusCasoClinico.RASCUNHO);
         caso.setProfessor(new Professor(1L, "Dra. Ana", "ana@email.com", "Clinica"));
         caso.setTitulo("Caso respiratorio");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setDisciplina("Clinica Medica");
         caso.setAreaSaude("Medicina");
         caso.setEstilo("Caso guiado");

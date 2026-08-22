@@ -170,7 +170,6 @@ public class PerguntaIaService {
         adicionarCampo(contexto, "disciplina", caso.getDisciplina());
         adicionarCampo(contexto, "areaSaude", caso.getAreaSaude());
         adicionarCampo(contexto, "especialidade", caso.getEspecialidade());
-        adicionarCampo(contexto, "dificuldade", caso.getDificuldade());
         adicionarCampo(contexto, "nivelDificuldade", valorComoTexto(caso.getNivelDificuldade()));
         adicionarCampo(contexto, "estilo", caso.getEstilo());
         adicionarCampo(contexto, "objetivoAprendizagem", caso.getObjetivoAprendizagem());

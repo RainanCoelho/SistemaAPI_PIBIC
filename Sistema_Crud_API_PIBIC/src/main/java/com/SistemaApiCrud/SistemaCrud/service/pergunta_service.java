@@ -380,21 +380,7 @@ public class pergunta_service {
                 .stream()
                 .map(this::paraAlternativaDTO)
                 .toList();
-
-        if (!alternativas.isEmpty()) {
-            return alternativas;
-        }
-
-        pergunta_request_DTO dto = new pergunta_request_DTO();
-        dto.setAlternativaA(pergunta.getAlternativaA());
-        dto.setAlternativaB(pergunta.getAlternativaB());
-        dto.setAlternativaC(pergunta.getAlternativaC());
-        dto.setAlternativaD(pergunta.getAlternativaD());
-        dto.setAlternativaE(pergunta.getAlternativaE());
-        dto.setGabarito(pergunta.getGabarito());
-        dto.setResposta(pergunta.getResposta());
-
-        return montarAlternativasLegadas(dto);
+        return alternativas;
     }
 
     private Map<Long, List<alternativa_pergunta_DTO>> buscarAlternativasPorPergunta(
@@ -425,17 +411,6 @@ public class pergunta_service {
             Map<Long, List<alternativa_pergunta_DTO>> alternativasPorPergunta) {
         List<alternativa_pergunta_DTO> alternativas = alternativasPorPergunta
                 .getOrDefault(pergunta.getId(), List.of());
-        if (alternativas.isEmpty()) {
-            pergunta_request_DTO dto = new pergunta_request_DTO();
-            dto.setAlternativaA(pergunta.getAlternativaA());
-            dto.setAlternativaB(pergunta.getAlternativaB());
-            dto.setAlternativaC(pergunta.getAlternativaC());
-            dto.setAlternativaD(pergunta.getAlternativaD());
-            dto.setAlternativaE(pergunta.getAlternativaE());
-            dto.setGabarito(pergunta.getGabarito());
-            dto.setResposta(pergunta.getResposta());
-            alternativas = montarAlternativasLegadas(dto);
-        }
         return mapper.toResponse(pergunta, alternativas);
     }
 
@@ -451,23 +426,6 @@ public class pergunta_service {
                         alternativa.getTexto()))
                 .toList();
 
-        if (alternativas.isEmpty()) {
-            pergunta_request_DTO dto = new pergunta_request_DTO();
-            dto.setAlternativaA(pergunta.getAlternativaA());
-            dto.setAlternativaB(pergunta.getAlternativaB());
-            dto.setAlternativaC(pergunta.getAlternativaC());
-            dto.setAlternativaD(pergunta.getAlternativaD());
-            dto.setAlternativaE(pergunta.getAlternativaE());
-            dto.setGabarito(pergunta.getGabarito());
-            dto.setResposta(pergunta.getResposta());
-            alternativas = montarAlternativasLegadas(dto).stream()
-                    .map(alternativa -> new alternativa_aluno_DTO(
-                            alternativa.getId(),
-                            alternativa.getLetra(),
-                            alternativa.getTexto()))
-                    .toList();
-        }
-
         Long idCaso = pergunta.getCasoClinico() != null
                 ? pergunta.getCasoClinico().getIdCaso()
                 : null;
@@ -475,11 +433,6 @@ public class pergunta_service {
                 pergunta.getId(),
                 idCaso,
                 pergunta.getTexto(),
-                pergunta.getAlternativaA(),
-                pergunta.getAlternativaB(),
-                pergunta.getAlternativaC(),
-                pergunta.getAlternativaD(),
-                pergunta.getAlternativaE(),
                 alternativas,
                 pergunta.getTipo());
     }
@@ -523,35 +476,7 @@ public class pergunta_service {
     }
 
     private List<alternativa_pergunta_DTO> montarAlternativasDTO(pergunta_request_DTO dto) {
-        if (dto.getAlternativas() != null && !dto.getAlternativas().isEmpty()) {
-            return dto.getAlternativas();
-        }
-
-        return montarAlternativasLegadas(dto);
-    }
-
-    private List<alternativa_pergunta_DTO> montarAlternativasLegadas(pergunta_request_DTO dto) {
-        List<alternativa_pergunta_DTO> alternativas = new ArrayList<>();
-
-        adicionarAlternativaLegada(alternativas, "A", dto.getAlternativaA(), dto);
-        adicionarAlternativaLegada(alternativas, "B", dto.getAlternativaB(), dto);
-        adicionarAlternativaLegada(alternativas, "C", dto.getAlternativaC(), dto);
-        adicionarAlternativaLegada(alternativas, "D", dto.getAlternativaD(), dto);
-        adicionarAlternativaLegada(alternativas, "E", dto.getAlternativaE(), dto);
-
-        return alternativas;
-    }
-
-    private void adicionarAlternativaLegada(
-            List<alternativa_pergunta_DTO> alternativas,
-            String letra,
-            String texto,
-            pergunta_request_DTO perguntaDTO) {
-        if (texto == null || texto.isBlank()) {
-            return;
-        }
-
-        alternativas.add(new alternativa_pergunta_DTO(null, letra, texto, correspondeGabarito(letra, perguntaDTO)));
+        return dto.getAlternativas() == null ? List.of() : dto.getAlternativas();
     }
 
     private boolean correspondeGabarito(String letra, pergunta_request_DTO perguntaDTO) {

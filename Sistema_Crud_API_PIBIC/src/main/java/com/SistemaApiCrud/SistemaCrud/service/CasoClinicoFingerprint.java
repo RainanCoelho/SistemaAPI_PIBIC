@@ -26,7 +26,6 @@ public final class CasoClinicoFingerprint {
         adicionar(dados, caso.getDisciplina());
         adicionar(dados, caso.getAreaSaude());
         adicionar(dados, caso.getEspecialidade());
-        adicionar(dados, caso.getDificuldade());
         adicionar(dados, caso.getNivelDificuldade());
         adicionar(dados, caso.getEstilo());
         adicionar(dados, caso.getObjetivoAprendizagem());

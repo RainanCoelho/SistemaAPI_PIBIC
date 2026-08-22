@@ -36,6 +36,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
@@ -199,7 +200,7 @@ class RespostaAlunoServiceTests {
     void deveCorrigirRespostaUsandoAlternativasSeparadas() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Clara", "clara@email.com", "Medicina", "6"));
         casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta pergunta = criarPergunta(caso, "A");
+        pergunta pergunta = criarPerguntaSemAlternativas(caso, "A");
 
         alternativaRepository.saveAll(List.of(
                 new AlternativaPergunta(null, pergunta, "A", "Conduta antiga", false),
@@ -946,7 +947,7 @@ class RespostaAlunoServiceTests {
         casos_clinicos caso = new casos_clinicos();
         caso.setProfessor(professor);
         caso.setTitulo("Caso respiratorio");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setDisciplina("Clinica Medica");
         caso.setAreaSaude("Medicina");
         caso.setEstilo("Multipla escolha");
@@ -958,14 +959,20 @@ class RespostaAlunoServiceTests {
     }
 
     private pergunta criarPergunta(casos_clinicos caso, String gabarito) {
+        pergunta perguntaSalva = criarPerguntaSemAlternativas(caso, gabarito);
+        alternativaRepository.saveAll(List.of(
+                new AlternativaPergunta(null, perguntaSalva, "A", "A", "A".equals(gabarito)),
+                new AlternativaPergunta(null, perguntaSalva, "B", "B", "B".equals(gabarito)),
+                new AlternativaPergunta(null, perguntaSalva, "C", "C", "C".equals(gabarito)),
+                new AlternativaPergunta(null, perguntaSalva, "D", "D", "D".equals(gabarito)),
+                new AlternativaPergunta(null, perguntaSalva, "E", "E", "E".equals(gabarito))));
+        return perguntaSalva;
+    }
+
+    private pergunta criarPerguntaSemAlternativas(casos_clinicos caso, String gabarito) {
         pergunta pergunta = new pergunta();
         pergunta.setCasoClinico(caso);
         pergunta.setTexto("Qual a melhor conduta?");
-        pergunta.setAlternativaA("A");
-        pergunta.setAlternativaB("B");
-        pergunta.setAlternativaC("C");
-        pergunta.setAlternativaD("D");
-        pergunta.setAlternativaE("E");
         pergunta.setResposta(gabarito);
         pergunta.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
         pergunta.setGabarito(gabarito);

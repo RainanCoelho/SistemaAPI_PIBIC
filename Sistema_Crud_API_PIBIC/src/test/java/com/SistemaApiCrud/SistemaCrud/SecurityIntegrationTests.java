@@ -32,6 +32,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
@@ -172,7 +173,6 @@ class SecurityIntegrationTests {
                         .content("""
                                 {
                                   "titulo": "Caso de seguranca",
-                                  "dificuldade": "MEDIA",
                                   "disciplina": "Clinica Medica",
                                   "areaSaude": "Medicina",
                                   "estilo": "Multipla escolha",
@@ -203,7 +203,7 @@ class SecurityIntegrationTests {
         casos_clinicos caso = new casos_clinicos();
         caso.setProfessor(professor);
         caso.setTitulo("Caso para gerar perguntas");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setDisciplina("Clinica");
         caso.setAreaSaude("Medicina");
         caso.setEstilo("Multipla escolha");
@@ -338,7 +338,7 @@ class SecurityIntegrationTests {
         casos_clinicos caso = new casos_clinicos();
         caso.setProfessor(professor);
         caso.setTitulo("Caso publicado para conflito");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setDisciplina("Clinica");
         caso.setAreaSaude("Medicina");
         caso.setEstilo("Discursiva");
@@ -367,13 +367,70 @@ class SecurityIntegrationTests {
     }
 
     @Test
+    void professorDeveArquivarCasoPublicadoDeFormaIdempotente() throws Exception {
+        String tokenProfessor = (String) login("professor", "professor123").get("token");
+        Professor professor = usuarioRepository.findByUsername("professor")
+                .orElseThrow()
+                .getProfessor();
+
+        casos_clinicos publicado = new casos_clinicos();
+        publicado.setProfessor(professor);
+        publicado.setTitulo("Caso a ser arquivado");
+        publicado.setNivelDificuldade(NivelDificuldade.MEDIA);
+        publicado.setDisciplina("Clinica");
+        publicado.setAreaSaude("Medicina");
+        publicado.setEstilo("Raciocinio clinico");
+        publicado.setEspecialidade("Clinica medica");
+        publicado.setStatus(StatusCasoClinico.PUBLICADO);
+        publicado.setTempoLimiteMinutos(60);
+        publicado = casoRepository.saveAndFlush(publicado);
+
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            mockMvc.perform(patch("/casos/" + publicado.getIdCaso() + "/arquivar")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProfessor))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("ARQUIVADO"));
+        }
+
+        Map<String, Object> loginAluno = login("aluno", "aluno123");
+        Long idAluno = ((Number) loginAluno.get("idAluno")).longValue();
+        String tokenAluno = (String) loginAluno.get("token");
+        mockMvc.perform(get("/alunos/" + idAluno + "/casos/"
+                        + publicado.getIdCaso() + "/completo")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenAluno))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value(
+                        "O caso clinico ainda nao esta publicado"));
+
+        casos_clinicos rascunho = new casos_clinicos();
+        rascunho.setProfessor(professor);
+        rascunho.setTitulo("Rascunho nao arquivavel");
+        rascunho.setNivelDificuldade(NivelDificuldade.BAIXA);
+        rascunho.setDisciplina("Clinica");
+        rascunho.setAreaSaude("Medicina");
+        rascunho.setEstilo("Raciocinio clinico");
+        rascunho.setEspecialidade("Clinica medica");
+        rascunho.setStatus(StatusCasoClinico.RASCUNHO);
+        rascunho.setTempoLimiteMinutos(30);
+        rascunho = casoRepository.saveAndFlush(rascunho);
+
+        mockMvc.perform(patch("/casos/" + rascunho.getIdCaso() + "/arquivar")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProfessor))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value(
+                        "Publique o caso clinico antes de arquiva-lo"));
+    }
+
+    @Test
     void casoDoAlunoNaoDeveExporGabaritoNemDiagnosticoEsperado() throws Exception {
         Professor professor = usuarioRepository.findByUsername("professor").orElseThrow().getProfessor();
 
         casos_clinicos caso = new casos_clinicos();
         caso.setProfessor(professor);
         caso.setTitulo("Caso sem vazamento");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setDisciplina("Clinica");
         caso.setAreaSaude("Medicina");
         caso.setEstilo("Multipla escolha");
@@ -424,7 +481,7 @@ class SecurityIntegrationTests {
         casos_clinicos caso = new casos_clinicos();
         caso.setProfessor(outroProfessor);
         caso.setTitulo("Caso de outro professor");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setDisciplina("Cirurgia");
         caso.setAreaSaude("Medicina");
         caso.setEstilo("Discursiva");

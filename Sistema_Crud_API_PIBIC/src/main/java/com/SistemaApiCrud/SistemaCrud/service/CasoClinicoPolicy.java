@@ -15,4 +15,11 @@ public final class CasoClinicoPolicy {
                     "O caso clinico so pode ser alterado enquanto estiver em rascunho");
         }
     }
+
+    public static void validarArquivavel(casos_clinicos caso) {
+        if (caso.getStatus() == StatusCasoClinico.RASCUNHO) {
+            throw new ConflitoEstadoException(
+                    "Publique o caso clinico antes de arquiva-lo");
+        }
+    }
 }

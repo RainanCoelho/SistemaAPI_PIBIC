@@ -27,24 +27,8 @@ public class pergunta_request_DTO {
     @Size(max = 10000, message = "A pergunta deve ter no maximo 10000 caracteres")
     private String texto;
 
-    @Size(max = 10000)
-    private String alternativaA;
-
-    @Size(max = 10000)
-    private String alternativaB;
-
-    @Size(max = 10000)
-    private String alternativaC;
-
-    @Size(max = 10000)
-    private String alternativaD;
-
-    @Size(max = 10000)
-    private String alternativaE;
-
-    @Valid
     @Size(max = 5, message = "A pergunta deve ter no maximo 5 alternativas")
-    private List<alternativa_pergunta_DTO> alternativas;
+    private List<@Valid alternativa_pergunta_DTO> alternativas;
 
     @NotBlank(message = "A resposta e obrigatoria")
     @Size(max = 10000, message = "A resposta deve ter no maximo 10000 caracteres")

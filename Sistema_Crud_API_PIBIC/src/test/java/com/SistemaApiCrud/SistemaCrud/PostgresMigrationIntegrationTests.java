@@ -56,11 +56,23 @@ class PostgresMigrationIntegrationTests {
         List<String> tabelas = jdbcTemplate.queryForList(
                 "select tablename from pg_tables where schemaname = 'public'",
                 String.class);
+        List<String> colunasPergunta = jdbcTemplate.queryForList(
+                """
+                select column_name from information_schema.columns
+                where table_schema = 'public' and table_name = 'pergunta'
+                """,
+                String.class);
+        List<String> colunasCaso = jdbcTemplate.queryForList(
+                """
+                select column_name from information_schema.columns
+                where table_schema = 'public' and table_name = 'casos_clinicos'
+                """,
+                String.class);
 
         assertThat(banco)
                 .startsWith("sistemacrud_")
                 .endsWith("test");
-        assertThat(versao).isEqualTo("12");
+        assertThat(versao).isEqualTo("14");
         assertThat(indices).contains(
                 "idx_alternativa_pergunta_pergunta_letra",
                 "idx_conteudo_caso_recente",
@@ -81,6 +93,15 @@ class PostgresMigrationIntegrationTests {
                 "idx_conteudo_caso",
                 "idx_resposta_aluno_caso",
                 "idx_tentativa_caso_aluno");
+        assertThat(colunasPergunta).doesNotContain(
+                "alternativa_a",
+                "alternativa_b",
+                "alternativa_c",
+                "alternativa_d",
+                "alternativa_e");
+        assertThat(colunasCaso)
+                .contains("nivel_dificuldade")
+                .doesNotContain("dificuldade");
     }
 
     private static String valorDoAmbiente(String nome, String valorPadrao) {

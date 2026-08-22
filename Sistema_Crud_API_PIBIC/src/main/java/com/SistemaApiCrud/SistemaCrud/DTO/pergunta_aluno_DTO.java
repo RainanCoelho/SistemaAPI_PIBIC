@@ -18,11 +18,6 @@ public class pergunta_aluno_DTO {
     private Long id;
     private Long idCaso;
     private String texto;
-    private String alternativaA;
-    private String alternativaB;
-    private String alternativaC;
-    private String alternativaD;
-    private String alternativaE;
     private List<alternativa_aluno_DTO> alternativas;
     private TipoPergunta tipo;
 }

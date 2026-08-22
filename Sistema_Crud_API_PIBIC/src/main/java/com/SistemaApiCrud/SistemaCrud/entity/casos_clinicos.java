@@ -45,9 +45,6 @@ public class casos_clinicos {
     @Column(nullable = false, length = 200)
     private String titulo;
 
-    @Column(nullable = false, length = 30)
-    private String dificuldade;
-
     @Column(nullable = false, length = 120)
     private String disciplina;
 
@@ -74,7 +71,7 @@ public class casos_clinicos {
     private String objetivoAprendizagem;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "nivel_dificuldade", length = 30)
+    @Column(name = "nivel_dificuldade", nullable = false, length = 30)
     private NivelDificuldade nivelDificuldade;
 
     @Column(name = "tempo_limite_minutos", nullable = false)

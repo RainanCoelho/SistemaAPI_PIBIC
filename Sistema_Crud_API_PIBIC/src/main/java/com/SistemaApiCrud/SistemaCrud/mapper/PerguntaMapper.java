@@ -20,11 +20,6 @@ public class PerguntaMapper {
                 pergunta.getId(),
                 idCaso,
                 pergunta.getTexto(),
-                pergunta.getAlternativaA(),
-                pergunta.getAlternativaB(),
-                pergunta.getAlternativaC(),
-                pergunta.getAlternativaD(),
-                pergunta.getAlternativaE(),
                 alternativas,
                 pergunta.getResposta(),
                 pergunta.getTipo(),
@@ -43,11 +38,6 @@ public class PerguntaMapper {
         }
 
         pergunta.setTexto(dto.getTexto());
-        pergunta.setAlternativaA(dto.getAlternativaA());
-        pergunta.setAlternativaB(dto.getAlternativaB());
-        pergunta.setAlternativaC(dto.getAlternativaC());
-        pergunta.setAlternativaD(dto.getAlternativaD());
-        pergunta.setAlternativaE(dto.getAlternativaE());
         pergunta.setResposta(dto.getResposta());
         pergunta.setTipo(dto.getTipo());
         pergunta.setGabarito(dto.getGabarito());

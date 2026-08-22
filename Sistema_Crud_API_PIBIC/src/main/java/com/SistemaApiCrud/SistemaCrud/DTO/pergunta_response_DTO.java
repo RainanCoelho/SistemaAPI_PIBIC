@@ -21,16 +21,6 @@ public class pergunta_response_DTO {
 
     private String texto;
 
-    private String alternativaA;
-
-    private String alternativaB;
-
-    private String alternativaC;
-
-    private String alternativaD;
-
-    private String alternativaE;
-
     private List<alternativa_pergunta_DTO> alternativas;
 
     private String resposta;

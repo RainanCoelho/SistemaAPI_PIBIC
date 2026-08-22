@@ -798,6 +798,27 @@ paths:
           description: Caso publicado
         "409":
           $ref: "#/components/responses/Conflito"
+  /casos/{id}/arquivar:
+    patch:
+      summary: Arquiva um caso clinico publicado
+      description: |
+        Remove o caso do catalogo dos alunos sem apagar seu historico. A
+        operacao e idempotente quando o caso ja esta arquivado.
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Caso arquivado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasoClinicoResponse"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
   /casos/{id}/ia/gerar:
     post:
       summary: Gera conteudo clinico com apoio da IA
@@ -1573,11 +1594,11 @@ components:
       type: object
       required:
         - titulo
-        - dificuldade
         - disciplina
         - areaSaude
         - estilo
         - especialidade
+        - nivelDificuldade
       properties:
         idProfessor:
           type: integer
@@ -1586,9 +1607,6 @@ components:
         titulo:
           type: string
           maxLength: 200
-        dificuldade:
-          type: string
-          maxLength: 30
         disciplina:
           type: string
           maxLength: 120

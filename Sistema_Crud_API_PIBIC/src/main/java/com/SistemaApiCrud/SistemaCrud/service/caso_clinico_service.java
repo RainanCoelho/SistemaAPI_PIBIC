@@ -144,6 +144,19 @@ public class caso_clinico_service {
     }
 
     @Transactional
+    public caso_clinico_response_DTO arquivar(Long id) {
+        casos_clinicos caso = repository.findByIdForUpdate(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
+        autorizacaoService.validarAcessoCaso(caso);
+        CasoClinicoPolicy.validarArquivavel(caso);
+        if (caso.getStatus() == StatusCasoClinico.ARQUIVADO) {
+            return mapper.toResponse(caso);
+        }
+        caso.setStatus(StatusCasoClinico.ARQUIVADO);
+        return mapper.toResponse(repository.save(caso));
+    }
+
+    @Transactional
     public void deletar(Long id) {
         casos_clinicos caso = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));

@@ -22,8 +22,6 @@ public class caso_clinico_response_DTO {
 
     private String titulo;
 
-    private String dificuldade;
-
     private String disciplina;
 
     private String areaSaude;

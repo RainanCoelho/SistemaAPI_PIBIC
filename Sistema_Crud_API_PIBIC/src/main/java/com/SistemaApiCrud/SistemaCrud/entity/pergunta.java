@@ -39,21 +39,6 @@ public class pergunta {
         @Column(nullable = false, columnDefinition = "TEXT")
 	    private String texto;
 
-	    @Column(name = "alternativa_a", columnDefinition = "TEXT")
-	    private String alternativaA;
-
-	    @Column(name = "alternativa_b", columnDefinition = "TEXT")
-	    private String alternativaB;
-
-	    @Column(name = "alternativa_c", columnDefinition = "TEXT")
-	    private String alternativaC;
-
-	    @Column(name = "alternativa_d", columnDefinition = "TEXT")
-	    private String alternativaD;
-
-	    @Column(name = "alternativa_e", columnDefinition = "TEXT")
-	    private String alternativaE;
-	    
         @Column(nullable = false, columnDefinition = "TEXT")
 	    private String resposta;
 

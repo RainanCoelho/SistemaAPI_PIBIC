@@ -232,7 +232,7 @@ public class ServicoCasoClinicoIa {
         contexto.append("</criterios_de_qualidade>\n<dados_do_caso>\n");
         adicionarCampo(contexto, "areaSaude", caso.getAreaSaude());
         adicionarCampo(contexto, "especialidade", caso.getEspecialidade());
-        adicionarCampo(contexto, "dificuldade", caso.getDificuldade());
+        adicionarCampo(contexto, "nivelDificuldade", valorComoTexto(caso.getNivelDificuldade()));
         adicionarCampo(contexto, "estilo", caso.getEstilo());
         adicionarCampo(contexto, "objetivoAprendizagem", caso.getObjetivoAprendizagem());
         adicionarPacientes(contexto, pacientesAtuais);
@@ -289,7 +289,7 @@ public class ServicoCasoClinicoIa {
                 """);
         adicionarCampo(contexto, "areaSaude", caso.getAreaSaude());
         adicionarCampo(contexto, "especialidade", caso.getEspecialidade());
-        adicionarCampo(contexto, "dificuldade", caso.getDificuldade());
+        adicionarCampo(contexto, "nivelDificuldade", valorComoTexto(caso.getNivelDificuldade()));
         adicionarCampo(contexto, "estilo", caso.getEstilo());
         adicionarCampo(contexto, "objetivoAprendizagem", caso.getObjetivoAprendizagem());
         adicionarPacientes(contexto, pacientesAtuais);

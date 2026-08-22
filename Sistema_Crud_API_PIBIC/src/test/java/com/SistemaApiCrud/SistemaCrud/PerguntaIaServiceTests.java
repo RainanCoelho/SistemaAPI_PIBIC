@@ -25,6 +25,7 @@ import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
@@ -398,7 +399,7 @@ class PerguntaIaServiceTests {
         caso.setDisciplina("Clinica Medica");
         caso.setAreaSaude("Medicina");
         caso.setEspecialidade("Pneumologia");
-        caso.setDificuldade("MEDIA");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
         caso.setEstilo("Raciocinio clinico");
         caso.setObjetivoAprendizagem("Definir diagnostico e conduta");
         return caso;

@@ -5,6 +5,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,10 +24,6 @@ public class caso_clinico_request_DTO {
     @NotBlank(message = "O titulo do caso clinico e obrigatorio")
     @Size(max = 200, message = "O titulo deve ter no maximo 200 caracteres")
     private String titulo;
-
-    @NotBlank(message = "A dificuldade e obrigatoria")
-    @Size(max = 30, message = "A dificuldade deve ter no maximo 30 caracteres")
-    private String dificuldade;
 
     @NotBlank(message = "A disciplina e obrigatoria")
     @Size(max = 120, message = "A disciplina deve ter no maximo 120 caracteres")
@@ -47,6 +44,7 @@ public class caso_clinico_request_DTO {
     @Size(max = 10000, message = "O objetivo de aprendizagem deve ter no maximo 10000 caracteres")
     private String objetivoAprendizagem;
 
+    @NotNull(message = "O nivel de dificuldade e obrigatorio")
     private NivelDificuldade nivelDificuldade;
 
     @Min(value = 15, message = "O tempo limite deve ser de pelo menos 15 minutos")

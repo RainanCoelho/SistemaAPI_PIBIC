@@ -120,6 +120,12 @@ public class caso_clinico_controller {
         return ResponseEntity.ok(service.publicar(id));
     }
 
+    @PatchMapping("/{id}/arquivar")
+    public ResponseEntity<caso_clinico_response_DTO> arquivar(@PathVariable @Min(1) Long id) {
+        autorizacaoService.validarAcessoCaso(id);
+        return ResponseEntity.ok(service.arquivar(id));
+    }
+
     @GetMapping("/{id}/respostas/pendentes-revisao")
     public Page<resposta_aluno_DTO> listarRespostasPendentesRevisao(
             @PathVariable @Min(1) Long id,

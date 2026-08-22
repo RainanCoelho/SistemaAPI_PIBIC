@@ -17,7 +17,6 @@ public class CasoClinicoMapper {
                 caso.getIdCaso(),
                 idProfessor,
                 caso.getTitulo(),
-                caso.getDificuldade(),
                 caso.getDisciplina(),
                 caso.getAreaSaude(),
                 caso.getEstilo(),
@@ -42,7 +41,6 @@ public class CasoClinicoMapper {
         }
 
         caso.setTitulo(dto.getTitulo());
-        caso.setDificuldade(dto.getDificuldade());
         caso.setDisciplina(dto.getDisciplina());
         caso.setAreaSaude(dto.getAreaSaude());
         caso.setEstilo(dto.getEstilo());
