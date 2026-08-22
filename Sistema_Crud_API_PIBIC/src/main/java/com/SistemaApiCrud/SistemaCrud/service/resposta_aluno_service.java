@@ -78,11 +78,10 @@ public class resposta_aluno_service {
             throw new BusinessException("O caso clinico ainda nao esta publicado");
         }
 
+        var tentativa = tentativaCasoService.validarPrazo(idAluno, idCaso);
         if (repository.existsByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, idCaso)) {
             throw new BusinessException("O aluno ja respondeu este caso clinico");
         }
-
-        var tentativa = tentativaCasoService.validarPrazo(idAluno, idCaso);
         List<pergunta> perguntasDoCaso = perguntaRepository.findByCasoClinicoIdCaso(idCaso);
         validarRespostasCompletas(perguntasDoCaso, request);
         Map<Long, pergunta> perguntasPorId = perguntasDoCaso.stream()

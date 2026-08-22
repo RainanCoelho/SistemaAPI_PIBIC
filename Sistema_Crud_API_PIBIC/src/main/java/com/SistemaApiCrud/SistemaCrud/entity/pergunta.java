@@ -10,6 +10,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 
@@ -62,5 +63,9 @@ public class pergunta {
 
         @Column(nullable = false, columnDefinition = "TEXT")
 	    private String gabarito;
+
+        @Version
+        @Column(nullable = false)
+        private Long versao = 0L;
 
 }

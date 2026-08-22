@@ -19,6 +19,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
+import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
 import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
@@ -83,21 +84,22 @@ public class ServicoCasoClinicoIa {
         CasoClinicoPolicy.validarRascunho(caso);
         Optional<conteudo_clinico> conteudoAnterior = conteudoRepository
                 .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso);
-        Optional<paciente> pacienteAtual = pacienteRepository
-                .findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
+        List<paciente> pacientesAtuais = pacienteRepository
+                .findByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
+        validarComplementoPaciente(requisicao, pacientesAtuais);
         String assinatura = CasoClinicoFingerprint.calcular(
                 caso,
                 conteudoAnterior.orElse(null),
-                pacienteAtual.map(List::of).orElseGet(List::of));
+                pacientesAtuais);
 
         CasoClinicoGeradoIaDTO conteudoGerado = precisaGerar(caso, requisicao)
-                ? gerarCamposComIa(caso, requisicao, pacienteAtual.orElse(null))
+                ? gerarCamposComIa(caso, requisicao, pacientesAtuais)
                 : new CasoClinicoGeradoIaDTO();
 
         return servicoTransacional.executarGeracao(
                 idCaso,
                 assinatura,
-                pacienteAtual.map(paciente::getIdPaciente).orElse(null),
+                pacientesAtuais.stream().map(paciente::getIdPaciente).toList(),
                 casoAtual -> {
                     aplicarComplementosGerados(casoAtual, requisicao, conteudoGerado);
                     CasoClinicoResponseDTO resposta = montarResposta(
@@ -118,22 +120,22 @@ public class ServicoCasoClinicoIa {
                 .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Conteudo clinico nao encontrado para este caso"));
-        Optional<paciente> pacienteAtual = pacienteRepository
-                .findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
+        List<paciente> pacientesAtuais = pacienteRepository
+                .findByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
         String assinatura = CasoClinicoFingerprint.calcular(
                 caso,
                 conteudoAtual,
-                pacienteAtual.map(List::of).orElseGet(List::of));
+                pacientesAtuais);
 
         CasoClinicoGeradoIaDTO conteudoGerado = gerarConteudoComPrompt(
-                montarPromptAjuste(caso, conteudoAtual, pacienteAtual.orElse(null), requisicao));
+                montarPromptAjuste(caso, conteudoAtual, pacientesAtuais, requisicao));
         validarAjusteGerado(conteudoGerado);
 
         return servicoTransacional.executarAjuste(
                 idCaso,
                 conteudoAtual.getIdConteudo(),
                 assinatura,
-                pacienteAtual.map(paciente::getIdPaciente).orElse(null),
+                pacientesAtuais.stream().map(paciente::getIdPaciente).toList(),
                 (casoAtual, conteudoAtualizado) -> {
                     CasoClinicoRequestDTO dadosImutaveis = new CasoClinicoRequestDTO(
                             null,
@@ -154,9 +156,9 @@ public class ServicoCasoClinicoIa {
     private CasoClinicoGeradoIaDTO gerarCamposComIa(
             casos_clinicos caso,
             CasoClinicoRequestDTO requisicao,
-            paciente pacienteAtual) {
+            List<paciente> pacientesAtuais) {
         CasoClinicoGeradoIaDTO gerado = gerarConteudoComPrompt(
-                montarPromptGeracao(caso, requisicao, pacienteAtual));
+                montarPromptGeracao(caso, requisicao, pacientesAtuais));
         validarGeracao(gerado, caso, requisicao);
         return gerado;
     }
@@ -178,7 +180,7 @@ public class ServicoCasoClinicoIa {
     private String montarPromptGeracao(
             casos_clinicos caso,
             CasoClinicoRequestDTO requisicao,
-            paciente pacienteAtual) {
+            List<paciente> pacientesAtuais) {
         StringBuilder contexto = new StringBuilder();
         contexto.append("""
                 <tarefa>
@@ -207,7 +209,7 @@ public class ServicoCasoClinicoIa {
         adicionarCampo(contexto, "dificuldade", caso.getDificuldade());
         adicionarCampo(contexto, "estilo", caso.getEstilo());
         adicionarCampo(contexto, "objetivoAprendizagem", caso.getObjetivoAprendizagem());
-        adicionarPaciente(contexto, pacienteAtual);
+        adicionarPacientes(contexto, pacientesAtuais);
         contexto.append("</dados_do_caso>\n<campos_fornecidos_pelo_professor>\n");
         adicionarCampo(contexto, "sintomas", requisicao.getSintomas());
         adicionarCampo(contexto, "contexto", requisicao.getContexto());
@@ -242,7 +244,7 @@ public class ServicoCasoClinicoIa {
     private String montarPromptAjuste(
             casos_clinicos caso,
             conteudo_clinico conteudoAtual,
-            paciente pacienteAtual,
+            List<paciente> pacientesAtuais,
             CasoClinicoAjusteRequestDTO ajuste) {
         StringBuilder contexto = new StringBuilder();
         contexto.append("""
@@ -264,7 +266,7 @@ public class ServicoCasoClinicoIa {
         adicionarCampo(contexto, "dificuldade", caso.getDificuldade());
         adicionarCampo(contexto, "estilo", caso.getEstilo());
         adicionarCampo(contexto, "objetivoAprendizagem", caso.getObjetivoAprendizagem());
-        adicionarPaciente(contexto, pacienteAtual);
+        adicionarPacientes(contexto, pacientesAtuais);
         adicionarCampo(contexto, "sintomas", conteudoAtual.getSintomas());
         adicionarCampo(contexto, "contexto", conteudoAtual.getContexto());
         adicionarCampo(contexto, "examClinico", conteudoAtual.getExamClinico());
@@ -310,20 +312,34 @@ public class ServicoCasoClinicoIa {
         };
     }
 
-    private void adicionarPaciente(StringBuilder contexto, paciente pacienteAtual) {
-        if (pacienteAtual == null) {
-            return;
+    private void adicionarPacientes(
+            StringBuilder contexto,
+            List<paciente> pacientesAtuais) {
+        for (int indice = 0; indice < pacientesAtuais.size(); indice++) {
+            paciente pacienteAtual = pacientesAtuais.get(indice);
+            contexto.append("<dados_clinicos_minimos_paciente indice=\"")
+                    .append(indice + 1)
+                    .append("\">\n");
+            adicionarCampo(contexto, "idade", valorComoTexto(pacienteAtual.getIdade()));
+            adicionarCampo(contexto, "sexo", valorComoTexto(pacienteAtual.getSexo()));
+            adicionarCampo(contexto, "peso", valorPacienteInformado(pacienteAtual.getPeso())
+                    ? pacienteAtual.getPeso()
+                    : null);
+            adicionarCampo(contexto, "altura", valorPacienteInformado(pacienteAtual.getAltura())
+                    ? pacienteAtual.getAltura()
+                    : null);
+            contexto.append("</dados_clinicos_minimos_paciente>\n");
         }
-        contexto.append("<dados_clinicos_minimos_do_paciente>\n");
-        adicionarCampo(contexto, "idade", valorComoTexto(pacienteAtual.getIdade()));
-        adicionarCampo(contexto, "sexo", valorComoTexto(pacienteAtual.getSexo()));
-        adicionarCampo(contexto, "peso", valorPacienteInformado(pacienteAtual.getPeso())
-                ? pacienteAtual.getPeso()
-                : null);
-        adicionarCampo(contexto, "altura", valorPacienteInformado(pacienteAtual.getAltura())
-                ? pacienteAtual.getAltura()
-                : null);
-        contexto.append("</dados_clinicos_minimos_do_paciente>\n");
+    }
+
+    private void validarComplementoPaciente(
+            CasoClinicoRequestDTO requisicao,
+            List<paciente> pacientesAtuais) {
+        if (Boolean.TRUE.equals(requisicao.getPermitirComplementoIa())
+                && pacientesAtuais.size() != 1) {
+            throw new BusinessException(
+                    "O complemento cadastral por IA exige exatamente um paciente no caso clinico");
+        }
     }
 
     private void adicionarCampo(StringBuilder contexto, String nome, String valor) {
@@ -470,8 +486,13 @@ public class ServicoCasoClinicoIa {
             CasoClinicoGeradoIaDTO gerado) {
         atualizarObjetivoAprendizagem(caso, gerado);
         if (Boolean.TRUE.equals(requisicao.getPermitirComplementoIa())) {
-            pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(caso.getIdCaso())
-                    .ifPresent(paciente -> atualizarPacienteComIa(paciente, gerado));
+            List<paciente> pacientes = pacienteRepository
+                    .findByCasoClinicoIdCasoOrderByIdPacienteAsc(caso.getIdCaso());
+            if (pacientes.size() != 1) {
+                throw new ConflitoEstadoException(
+                        "A quantidade de pacientes mudou durante a geracao; tente novamente");
+            }
+            atualizarPacienteComIa(pacientes.getFirst(), gerado);
         }
     }
 

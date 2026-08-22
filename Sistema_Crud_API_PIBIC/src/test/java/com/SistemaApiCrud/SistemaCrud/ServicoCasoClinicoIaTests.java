@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -51,8 +52,8 @@ class ServicoCasoClinicoIaTests {
 
         casos_clinicos caso = criarCaso();
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
-        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
-                .thenReturn(Optional.empty());
+        when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(List.of());
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> {
             conteudo_clinico conteudo = invocation.getArgument(0);
             conteudo.setIdConteudo(10L);
@@ -118,8 +119,8 @@ class ServicoCasoClinicoIaTests {
         conteudoAtual.setDiagEsperado("Exacerbacao asmatica");
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
-        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
-                .thenReturn(Optional.empty());
+        when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(List.of());
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudoAtual));
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -154,8 +155,8 @@ class ServicoCasoClinicoIaTests {
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(casoRepository.save(any(casos_clinicos.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
-                .thenReturn(Optional.of(paciente));
+        when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(List.of(paciente));
         when(pacienteRepository.save(any(paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> {
             conteudo_clinico conteudo = invocation.getArgument(0);
@@ -223,8 +224,8 @@ class ServicoCasoClinicoIaTests {
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(casoRepository.save(any(casos_clinicos.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(pacienteRepository.findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
-                .thenReturn(Optional.of(paciente));
+        when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
+                .thenReturn(List.of(paciente));
         when(pacienteRepository.save(any(paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudoAtual));

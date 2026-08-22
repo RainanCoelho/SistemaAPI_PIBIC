@@ -1,6 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.DTO;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,5 +25,5 @@ public class resposta_aluno_DTO {
 
     private Boolean correta;
 
-    private LocalDateTime dataResposta;
+    private Instant dataResposta;
 }

@@ -724,7 +724,7 @@ class RespostaAlunoServiceTests {
         assertThatThrownBy(() -> casoClinicoIaTransactionService.executarGeracao(
                 caso.getIdCaso(),
                 fingerprint,
-                null,
+                List.of(),
                 casoBloqueado -> {
                     casoBloqueado.setTitulo("Titulo que deve sofrer rollback");
                     conteudo_clinico novoConteudo = new conteudo_clinico();
@@ -771,7 +771,50 @@ class RespostaAlunoServiceTests {
         assertThatThrownBy(() -> casoClinicoIaTransactionService.executarGeracao(
                 caso.getIdCaso(),
                 fingerprintAnterior,
+                List.of(),
+                casoBloqueado -> {
+                    executouPersistencia.set(true);
+                    return null;
+                }))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException.class)
+                .hasMessageContaining("mudou durante a operacao com IA");
+        assertThat(executouPersistencia).isFalse();
+    }
+
+    @Test
+    void persistenciaDeConteudoIaDeveDetectarAlteracaoNoSegundoPaciente() {
+        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        paciente primeiroPaciente = pacienteRepository.saveAndFlush(new paciente(
                 null,
+                caso,
+                "Paciente um",
+                "Professor",
+                Sexo.NAO_INFORMADO,
+                40,
+                EstadoCivil.NAO_INFORMADO,
+                "1,70 m",
+                "70 kg"));
+        paciente segundoPaciente = pacienteRepository.saveAndFlush(new paciente(
+                null,
+                caso,
+                "Paciente dois",
+                "Enfermeiro",
+                Sexo.NAO_INFORMADO,
+                35,
+                EstadoCivil.NAO_INFORMADO,
+                "1,65 m",
+                "65 kg"));
+        List<paciente> pacientes = List.of(primeiroPaciente, segundoPaciente);
+        String fingerprintAnterior = CasoClinicoFingerprint.calcular(caso, null, pacientes);
+
+        segundoPaciente.setProfissao("Medico");
+        pacienteRepository.saveAndFlush(segundoPaciente);
+        AtomicBoolean executouPersistencia = new AtomicBoolean(false);
+
+        assertThatThrownBy(() -> casoClinicoIaTransactionService.executarGeracao(
+                caso.getIdCaso(),
+                fingerprintAnterior,
+                pacientes.stream().map(paciente::getIdPaciente).toList(),
                 casoBloqueado -> {
                     executouPersistencia.set(true);
                     return null;

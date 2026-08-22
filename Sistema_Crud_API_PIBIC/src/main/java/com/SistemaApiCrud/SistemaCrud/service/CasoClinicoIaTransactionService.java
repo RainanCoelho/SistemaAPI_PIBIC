@@ -34,9 +34,9 @@ public class CasoClinicoIaTransactionService {
     public <T> T executarGeracao(
             Long idCaso,
             String fingerprintEsperado,
-            Long idPacienteEsperado,
+            List<Long> idsPacientesEsperados,
             Function<casos_clinicos, T> operacao) {
-        bloquearPacienteEsperado(idPacienteEsperado);
+        bloquearPacientesEsperados(idCaso, idsPacientesEsperados);
         casos_clinicos caso = casoLockService.bloquearRascunho(idCaso);
         validarContextoInalterado(caso, fingerprintEsperado);
         return operacao.apply(caso);
@@ -47,9 +47,9 @@ public class CasoClinicoIaTransactionService {
             Long idCaso,
             Long idConteudoEsperado,
             String fingerprintEsperado,
-            Long idPacienteEsperado,
+            List<Long> idsPacientesEsperados,
             BiFunction<casos_clinicos, conteudo_clinico, T> operacao) {
-        bloquearPacienteEsperado(idPacienteEsperado);
+        bloquearPacientesEsperados(idCaso, idsPacientesEsperados);
         conteudo_clinico conteudo = conteudoRepository.findByIdForUpdate(idConteudoEsperado)
                 .orElseThrow(() -> contextoAlterado(
                         "O conteudo clinico mudou durante o ajuste; tente novamente"));
@@ -74,14 +74,23 @@ public class CasoClinicoIaTransactionService {
         return operacao.apply(caso, conteudo);
     }
 
-    private void bloquearPacienteEsperado(Long idPacienteEsperado) {
-        if (idPacienteEsperado == null) {
-            return;
-        }
+    private void bloquearPacientesEsperados(
+            Long idCaso,
+            List<Long> idsPacientesEsperados) {
+        List<Long> idsOrdenados = idsPacientesEsperados == null
+                ? List.of()
+                : idsPacientesEsperados.stream().sorted().toList();
 
-        pacienteRepository.findByIdForUpdate(idPacienteEsperado)
-                .orElseThrow(() -> contextoAlterado(
-                        "O paciente mudou durante a operacao com IA; tente novamente"));
+        for (Long idPaciente : idsOrdenados) {
+            paciente paciente = pacienteRepository.findByIdForUpdate(idPaciente)
+                    .orElseThrow(() -> contextoAlterado(
+                            "Um paciente mudou durante a operacao com IA; tente novamente"));
+            if (paciente.getCasoClinico() == null
+                    || !idCaso.equals(paciente.getCasoClinico().getIdCaso())) {
+                throw contextoAlterado(
+                        "Um paciente mudou de caso durante a operacao com IA; tente novamente");
+            }
+        }
     }
 
     private void validarContextoInalterado(
@@ -90,14 +99,12 @@ public class CasoClinicoIaTransactionService {
         conteudo_clinico conteudoAtual = conteudoRepository
                 .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(caso.getIdCaso())
                 .orElse(null);
-        List<paciente> pacienteAtual = pacienteRepository
-                .findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(caso.getIdCaso())
-                .map(List::of)
-                .orElseGet(List::of);
+        List<paciente> pacientesAtuais = pacienteRepository
+                .findByCasoClinicoIdCasoOrderByIdPacienteAsc(caso.getIdCaso());
         String fingerprintAtual = CasoClinicoFingerprint.calcular(
                 caso,
                 conteudoAtual,
-                pacienteAtual);
+                pacientesAtuais);
 
         if (!fingerprintEsperado.equals(fingerprintAtual)) {
             throw contextoAlterado(

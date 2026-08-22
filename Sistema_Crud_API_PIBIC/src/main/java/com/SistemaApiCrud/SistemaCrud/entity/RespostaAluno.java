@@ -1,6 +1,7 @@
 package com.SistemaApiCrud.SistemaCrud.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -47,12 +49,16 @@ public class RespostaAluno {
     private Boolean correta;
 
     @Column(name = "data_resposta", nullable = false)
-    private LocalDateTime dataResposta;
+    private Instant dataResposta;
+
+    @Version
+    @Column(nullable = false)
+    private Long versao = 0L;
 
     @PrePersist
     public void antesDeCriar() {
         if (dataResposta == null) {
-            dataResposta = LocalDateTime.now();
+            dataResposta = Instant.now().truncatedTo(ChronoUnit.MICROS);
         }
     }
 }

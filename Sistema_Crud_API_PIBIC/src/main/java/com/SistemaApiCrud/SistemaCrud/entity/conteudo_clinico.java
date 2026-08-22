@@ -8,6 +8,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -45,6 +46,10 @@ public class conteudo_clinico {
 
     @Column(name = "diag_esperado", nullable = false, columnDefinition = "TEXT")
     private String diagEsperado;
+
+    @Version
+    @Column(nullable = false)
+    private Long versao = 0L;
 	
 	
 	

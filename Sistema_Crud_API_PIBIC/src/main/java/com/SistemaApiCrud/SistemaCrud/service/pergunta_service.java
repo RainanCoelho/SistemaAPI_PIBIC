@@ -36,6 +36,9 @@ import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
 @Service
 public class pergunta_service {
 
+    private static final Set<String> LETRAS_ALTERNATIVAS_PERMITIDAS =
+            Set.of("A", "B", "C", "D", "E");
+
     private final pergunta_repository repository;
     private final caso_clinico_repository casoRepository;
     private final alternativa_pergunta_repository alternativaRepository;
@@ -328,6 +331,9 @@ public class pergunta_service {
             String letra = alternativa.getLetra() == null ? "" : alternativa.getLetra().trim().toUpperCase();
             if (letra.isBlank()) {
                 throw new BadRequestException("A letra da alternativa e obrigatoria");
+            }
+            if (!LETRAS_ALTERNATIVAS_PERMITIDAS.contains(letra)) {
+                throw new BadRequestException("A letra da alternativa deve estar entre A e E");
             }
             if (!letras.add(letra)) {
                 throw new BadRequestException("As letras das alternativas nao podem se repetir");

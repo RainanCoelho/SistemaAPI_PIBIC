@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
@@ -27,6 +28,27 @@ import lombok.Setter;
 @Entity
 @Table(name = "paciente")
 public class paciente {
+
+    public paciente(
+            Long idPaciente,
+            casos_clinicos casoClinico,
+            String nome,
+            String profissao,
+            Sexo sexo,
+            Integer idade,
+            EstadoCivil estadoCivil,
+            String altura,
+            String peso) {
+        this.idPaciente = idPaciente;
+        this.casoClinico = casoClinico;
+        this.nome = nome;
+        this.profissao = profissao;
+        this.sexo = sexo;
+        this.idade = idade;
+        this.estadoCivil = estadoCivil;
+        this.altura = altura;
+        this.peso = peso;
+    }
 
 	  @Id
 	    @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,6 +81,10 @@ public class paciente {
 
         @Column(nullable = false, length = 20)
 	    private String peso;
+
+        @Version
+        @Column(nullable = false)
+        private Long versao = 0L;
 	
 	
 	

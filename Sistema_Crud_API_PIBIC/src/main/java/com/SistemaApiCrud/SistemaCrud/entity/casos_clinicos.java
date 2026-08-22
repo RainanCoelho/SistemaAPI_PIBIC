@@ -17,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -78,6 +79,10 @@ public class casos_clinicos {
 
     @Column(name = "tempo_limite_minutos", nullable = false)
     private Integer tempoLimiteMinutos = TEMPO_LIMITE_PADRAO_MINUTOS;
+
+    @Version
+    @Column(nullable = false)
+    private Long versao = 0L;
 
     @PrePersist
     public void antesDeCriar() {

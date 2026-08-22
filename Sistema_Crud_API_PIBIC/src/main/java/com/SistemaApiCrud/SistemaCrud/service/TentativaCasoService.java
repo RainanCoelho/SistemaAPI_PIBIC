@@ -40,7 +40,7 @@ public class TentativaCasoService {
 
     public TentativaCaso validarPrazo(Long idAluno, Long idCaso) {
         TentativaCaso tentativa = repository
-                .findByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, idCaso)
+                .findByAlunoECasoForUpdate(idAluno, idCaso)
                 .orElseThrow(() -> new BusinessException(
                         "A tentativa deve ser iniciada antes do envio das respostas"));
 
