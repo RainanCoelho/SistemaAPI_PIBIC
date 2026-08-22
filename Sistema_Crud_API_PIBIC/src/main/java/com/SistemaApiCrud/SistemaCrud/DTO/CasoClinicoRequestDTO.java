@@ -1,6 +1,8 @@
 package com.SistemaApiCrud.SistemaCrud.DTO;
 
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,6 +36,10 @@ public class CasoClinicoRequestDTO {
 
     private Boolean incluirResultadosExamesClinicos;
 
+    @AssertTrue(message = "Confirme que os dados sao sinteticos ou foram desidentificados")
+    @NotNull(message = "A confirmacao sobre os dados enviados a IA e obrigatoria")
+    private Boolean dadosSinteticosOuDesidentificados;
+
     public CasoClinicoRequestDTO(
             String sintomas,
             String contexto,
@@ -45,5 +51,6 @@ public class CasoClinicoRequestDTO {
         this.examClinico = examClinico;
         this.antecClinico = antecClinico;
         this.diagEsperado = diagEsperado;
+        this.dadosSinteticosOuDesidentificados = true;
     }
 }

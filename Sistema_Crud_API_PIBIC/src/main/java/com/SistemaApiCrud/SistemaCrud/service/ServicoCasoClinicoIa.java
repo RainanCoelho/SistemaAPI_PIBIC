@@ -16,6 +16,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
 import com.SistemaApiCrud.SistemaCrud.entity.paciente;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.OperacaoGeracaoIa;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
@@ -35,6 +36,7 @@ public class ServicoCasoClinicoIa {
     private static final int LIMITE_OBJETIVO = 10_000;
     private static final int LIMITE_PROFISSAO = 120;
     private static final int LIMITE_MEDIDA = 20;
+    private static final String VERSAO_PROMPT = "caso-clinico-v2";
 
     private static final String INSTRUCOES_SISTEMA = """
             Voce e um professor experiente da area da saude que cria casos clinicos educacionais.
@@ -58,6 +60,7 @@ public class ServicoCasoClinicoIa {
     private final conteudo_clinico_repository conteudoRepository;
     private final paciente_repository pacienteRepository;
     private final CasoClinicoIaTransactionService servicoTransacional;
+    private final GeracaoIaAuditService auditService;
     private final ProtecaoDadosClinicosIa protecaoDadosClinicosIa;
     private final String chaveApi;
 
@@ -67,6 +70,7 @@ public class ServicoCasoClinicoIa {
             conteudo_clinico_repository conteudoRepository,
             paciente_repository pacienteRepository,
             CasoClinicoIaTransactionService servicoTransacional,
+            GeracaoIaAuditService auditService,
             ProtecaoDadosClinicosIa protecaoDadosClinicosIa,
             @Value("${spring.ai.openai.api-key:}") String chaveApi) {
         this.clienteIa = clienteIa;
@@ -74,11 +78,13 @@ public class ServicoCasoClinicoIa {
         this.conteudoRepository = conteudoRepository;
         this.pacienteRepository = pacienteRepository;
         this.servicoTransacional = servicoTransacional;
+        this.auditService = auditService;
         this.protecaoDadosClinicosIa = protecaoDadosClinicosIa;
         this.chaveApi = chaveApi;
     }
 
     public CasoClinicoResponseDTO gerarConteudo(Long idCaso, CasoClinicoRequestDTO requisicao) {
+        validarAtestacaoDados(requisicao.getDadosSinteticosOuDesidentificados());
         casos_clinicos caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         CasoClinicoPolicy.validarRascunho(caso);
@@ -92,9 +98,16 @@ public class ServicoCasoClinicoIa {
                 conteudoAnterior.orElse(null),
                 pacientesAtuais);
 
-        CasoClinicoGeradoIaDTO conteudoGerado = precisaGerar(caso, requisicao)
-                ? gerarCamposComIa(caso, requisicao, pacientesAtuais)
+        boolean utilizouIa = precisaGerar(caso, requisicao);
+        String contextoIa = utilizouIa
+                ? montarPromptGeracao(caso, requisicao, pacientesAtuais)
+                : null;
+        CasoClinicoGeradoIaDTO conteudoGerado = utilizouIa
+                ? gerarConteudoComPrompt(contextoIa)
                 : new CasoClinicoGeradoIaDTO();
+        if (utilizouIa) {
+            validarGeracao(conteudoGerado, caso, requisicao);
+        }
 
         return servicoTransacional.executarGeracao(
                 idCaso,
@@ -108,11 +121,22 @@ public class ServicoCasoClinicoIa {
                             conteudoGerado);
                     conteudo_clinico conteudoSalvo = salvarConteudo(casoAtual, resposta);
                     resposta.setIdConteudo(conteudoSalvo.getIdConteudo());
+                    if (utilizouIa) {
+                        auditService.registrar(
+                                casoAtual,
+                                OperacaoGeracaoIa.GERAR_CASO,
+                                VERSAO_PROMPT,
+                                contextoIa,
+                                conteudoGerado,
+                                "conteudo:" + conteudoSalvo.getIdConteudo(),
+                                1);
+                    }
                     return resposta;
                 });
     }
 
     public CasoClinicoResponseDTO ajustarConteudo(Long idCaso, CasoClinicoAjusteRequestDTO requisicao) {
+        validarAtestacaoDados(requisicao.getDadosSinteticosOuDesidentificados());
         casos_clinicos caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         CasoClinicoPolicy.validarRascunho(caso);
@@ -127,8 +151,12 @@ public class ServicoCasoClinicoIa {
                 conteudoAtual,
                 pacientesAtuais);
 
-        CasoClinicoGeradoIaDTO conteudoGerado = gerarConteudoComPrompt(
-                montarPromptAjuste(caso, conteudoAtual, pacientesAtuais, requisicao));
+        String contextoIa = montarPromptAjuste(
+                caso,
+                conteudoAtual,
+                pacientesAtuais,
+                requisicao);
+        CasoClinicoGeradoIaDTO conteudoGerado = gerarConteudoComPrompt(contextoIa);
         validarAjusteGerado(conteudoGerado);
 
         return servicoTransacional.executarAjuste(
@@ -149,18 +177,16 @@ public class ServicoCasoClinicoIa {
                             conteudoGerado);
                     conteudo_clinico conteudoSalvo = atualizarConteudo(conteudoAtualizado, resposta);
                     resposta.setIdConteudo(conteudoSalvo.getIdConteudo());
+                    auditService.registrar(
+                            casoAtual,
+                            OperacaoGeracaoIa.AJUSTAR_CASO,
+                            VERSAO_PROMPT,
+                            contextoIa,
+                            conteudoGerado,
+                            "conteudo:" + conteudoSalvo.getIdConteudo(),
+                            1);
                     return resposta;
                 });
-    }
-
-    private CasoClinicoGeradoIaDTO gerarCamposComIa(
-            casos_clinicos caso,
-            CasoClinicoRequestDTO requisicao,
-            List<paciente> pacientesAtuais) {
-        CasoClinicoGeradoIaDTO gerado = gerarConteudoComPrompt(
-                montarPromptGeracao(caso, requisicao, pacientesAtuais));
-        validarGeracao(gerado, caso, requisicao);
-        return gerado;
     }
 
     private CasoClinicoGeradoIaDTO gerarConteudoComPrompt(String contexto) {
@@ -339,6 +365,13 @@ public class ServicoCasoClinicoIa {
                 && pacientesAtuais.size() != 1) {
             throw new BusinessException(
                     "O complemento cadastral por IA exige exatamente um paciente no caso clinico");
+        }
+    }
+
+    private void validarAtestacaoDados(Boolean dadosSinteticosOuDesidentificados) {
+        if (!Boolean.TRUE.equals(dadosSinteticosOuDesidentificados)) {
+            throw new BusinessException(
+                    "Confirme que os dados enviados a IA sao sinteticos ou foram desidentificados");
         }
     }
 

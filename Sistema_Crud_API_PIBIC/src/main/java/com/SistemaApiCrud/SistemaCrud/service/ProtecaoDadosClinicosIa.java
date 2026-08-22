@@ -18,9 +18,16 @@ public class ProtecaoDadosClinicosIa {
             "(?<!\\d)(?:\\+?55\\s*)?(?:\\(?\\d{2}\\)?\\s*)?9?\\d{4}[-\\s]?\\d{4}(?!\\d)");
     private static final Pattern DATA_EXATA = Pattern.compile(
             "(?<!\\d)(?:\\d{2}[/-]\\d{2}[/-]\\d{4}|\\d{4}-\\d{2}-\\d{2})(?!\\d)");
+    private static final Pattern CEP = Pattern.compile(
+            "(?<!\\d)\\d{5}-?\\d{3}(?!\\d)");
+    private static final Pattern REGISTRO_PROFISSIONAL = Pattern.compile(
+            "(?i)\\b(?:CRM|COREN|CRO|CRP|CREFITO|CRF)\\s*[-/:]?\\s*[A-Z]{0,2}\\s*\\d{3,10}\\b");
     private static final Pattern IDENTIFICADOR_ROTULADO = Pattern.compile(
             "(?i)\\b(?:nome(?:\\s+completo)?|cpf|rg|prontu[aá]rio|endere[cç]o|"
-                    + "e-?mail|telefone|celular)\\s*[:=]\\s*[^;\\n]{1,150}");
+                    + "e-?mail|telefone|celular|cep|cart[aã]o\\s+sus|matr[ií]cula|"
+                    + "nome\\s+da\\s+m[aã]e|nome\\s+do\\s+pai|institui[cç][aã]o|"
+                    + "hospital|cl[ií]nica|unidade\\s+de\\s+sa[uú]de)"
+                    + "\\s*[:=]\\s*[^;\\n]{1,150}");
 
     public String prepararParaEnvio(String valor) {
         if (valor == null) {
@@ -34,6 +41,8 @@ public class ProtecaoDadosClinicosIa {
         protegido = CNS.matcher(protegido).replaceAll(VALOR_REDACTADO);
         protegido = TELEFONE.matcher(protegido).replaceAll(VALOR_REDACTADO);
         protegido = DATA_EXATA.matcher(protegido).replaceAll(VALOR_REDACTADO);
+        protegido = CEP.matcher(protegido).replaceAll(VALOR_REDACTADO);
+        protegido = REGISTRO_PROFISSIONAL.matcher(protegido).replaceAll(VALOR_REDACTADO);
         return protegido
                 .replace("&", "&amp;")
                 .replace("<", "&lt;")

@@ -33,6 +33,7 @@ import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoAiClient;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoIaTransactionService;
+import com.SistemaApiCrud.SistemaCrud.service.GeracaoIaAuditService;
 import com.SistemaApiCrud.SistemaCrud.service.ProtecaoDadosClinicosIa;
 import com.SistemaApiCrud.SistemaCrud.service.ServicoCasoClinicoIa;
 
@@ -44,6 +45,17 @@ class ServicoCasoClinicoIaTests {
     private final paciente_repository pacienteRepository = mock(paciente_repository.class);
     private final CasoClinicoIaTransactionService transactionService =
             mock(CasoClinicoIaTransactionService.class);
+    private final GeracaoIaAuditService auditService = mock(GeracaoIaAuditService.class);
+
+    @Test
+    void deveExigirConfirmacaoDeDadosSinteticosOuDesidentificados() {
+        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO();
+        requisicao.setDadosSinteticosOuDesidentificados(false);
+
+        assertThatThrownBy(() -> servicoComChave().gerarConteudo(1L, requisicao))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BusinessException.class)
+                .hasMessageContaining("sinteticos ou foram desidentificados");
+    }
 
     @Test
     void deveCompletarCamposVaziosComRespostaDaIaEPreservarDadosDoProfessor() {
@@ -86,6 +98,7 @@ class ServicoCasoClinicoIaTests {
                 conteudoRepository,
                 pacienteRepository,
                 transactionService,
+                auditService,
                 new ProtecaoDadosClinicosIa(),
                 "");
 
@@ -127,7 +140,7 @@ class ServicoCasoClinicoIaTests {
 
         CasoClinicoResponseDTO resposta = servico.ajustarConteudo(
                 1L,
-                new CasoClinicoAjusteRequestDTO("SIMPLIFICAR", null));
+                new CasoClinicoAjusteRequestDTO("SIMPLIFICAR", null, true));
 
         assertThat(resposta.getIdConteudo()).isEqualTo(22L);
         assertThat(resposta.getContexto()).isEqualTo("Paciente adulto em atendimento ambulatorial");
@@ -165,6 +178,7 @@ class ServicoCasoClinicoIaTests {
         });
 
         CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(null, null, null, null, null);
+        requisicao.setDadosSinteticosOuDesidentificados(true);
         requisicao.setPermitirComplementoIa(true);
         requisicao.setInformacoesAdicionaisPaciente(
                 "CPF: 123.456.789-00; outro CPF 98765432100; "
@@ -233,7 +247,10 @@ class ServicoCasoClinicoIaTests {
 
         CasoClinicoResponseDTO resposta = servico.ajustarConteudo(
                 1L,
-                new CasoClinicoAjusteRequestDTO("PERSONALIZADO", "Paciente precisa ter menos que 25 anos"));
+                new CasoClinicoAjusteRequestDTO(
+                        "PERSONALIZADO",
+                        "Paciente precisa ter menos que 25 anos",
+                        true));
 
         assertThat(resposta.getIdConteudo()).isEqualTo(44L);
         assertThat(resposta.getDiagEsperado()).isEqualTo("Angina instavel");
@@ -250,6 +267,7 @@ class ServicoCasoClinicoIaTests {
                 conteudoRepository,
                 pacienteRepository,
                 transactionService,
+                auditService,
                 new ProtecaoDadosClinicosIa(),
                 "chave-teste");
     }

@@ -58,6 +58,7 @@ public class PerguntaIaService {
     private final conteudo_clinico_repository conteudoRepository;
     private final paciente_repository pacienteRepository;
     private final pergunta_service perguntaService;
+    private final PerguntaIaTransactionService transactionService;
     private final ProtecaoDadosClinicosIa protecaoDadosClinicosIa;
     private final String chaveApi;
 
@@ -67,6 +68,7 @@ public class PerguntaIaService {
             conteudo_clinico_repository conteudoRepository,
             paciente_repository pacienteRepository,
             pergunta_service perguntaService,
+            PerguntaIaTransactionService transactionService,
             ProtecaoDadosClinicosIa protecaoDadosClinicosIa,
             @Value("${spring.ai.openai.api-key:}") String chaveApi) {
         this.clienteIa = clienteIa;
@@ -74,6 +76,7 @@ public class PerguntaIaService {
         this.conteudoRepository = conteudoRepository;
         this.pacienteRepository = pacienteRepository;
         this.perguntaService = perguntaService;
+        this.transactionService = transactionService;
         this.protecaoDadosClinicosIa = protecaoDadosClinicosIa;
         this.chaveApi = chaveApi;
     }
@@ -81,6 +84,10 @@ public class PerguntaIaService {
     public List<pergunta_response_DTO> gerarPerguntas(
             Long idCaso,
             GerarPerguntasIaRequestDTO requisicao) {
+        if (!Boolean.TRUE.equals(requisicao.getDadosSinteticosOuDesidentificados())) {
+            throw new BusinessException(
+                    "Confirme que os dados enviados a IA sao sinteticos ou foram desidentificados");
+        }
         validarChaveConfigurada();
         validarRequisicaoPorTipo(requisicao);
 
@@ -109,11 +116,13 @@ public class PerguntaIaService {
                 .map(pergunta -> mapearPergunta(pergunta, requisicao.getTipo()))
                 .toList();
 
-        return perguntaService.salvarLoteEmCaso(
+        return transactionService.salvarComAuditoria(
                 idCaso,
                 perguntas,
                 fingerprint,
-                quantidadePerguntasExistentes);
+                quantidadePerguntasExistentes,
+                contexto,
+                respostaIa);
     }
 
     private void validarChaveConfigurada() {

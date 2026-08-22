@@ -28,6 +28,7 @@ import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
+import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
 import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
@@ -36,10 +37,21 @@ import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaAiClient;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaIaService;
+import com.SistemaApiCrud.SistemaCrud.service.PerguntaIaTransactionService;
 import com.SistemaApiCrud.SistemaCrud.service.ProtecaoDadosClinicosIa;
 import com.SistemaApiCrud.SistemaCrud.service.pergunta_service;
 
 class PerguntaIaServiceTests {
+
+    @Test
+    void deveExigirConfirmacaoDeDadosSinteticosOuDesidentificados() {
+        GerarPerguntasIaRequestDTO requisicao = request(1);
+        requisicao.setDadosSinteticosOuDesidentificados(false);
+
+        assertThatThrownBy(() -> serviceComChave().gerarPerguntas(1L, requisicao))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("sinteticos ou foram desidentificados");
+    }
 
     private final PerguntaAiClient aiClient = mock(PerguntaAiClient.class);
     private final caso_clinico_repository casoRepository = mock(caso_clinico_repository.class);
@@ -47,6 +59,8 @@ class PerguntaIaServiceTests {
             mock(conteudo_clinico_repository.class);
     private final paciente_repository pacienteRepository = mock(paciente_repository.class);
     private final pergunta_service perguntaService = mock(pergunta_service.class);
+    private final PerguntaIaTransactionService transactionService =
+            mock(PerguntaIaTransactionService.class);
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -66,7 +80,8 @@ class PerguntaIaServiceTests {
         when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
                 .thenReturn(List.of());
         when(aiClient.gerarPerguntas(any(), any())).thenReturn(respostaIa);
-        when(perguntaService.salvarLoteEmCaso(anyLong(), any(), anyString(), anyLong()))
+        when(transactionService.salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any()))
                 .thenReturn(respostaEsperada);
 
         List<pergunta_response_DTO> resposta = service.gerarPerguntas(1L, request);
@@ -86,11 +101,13 @@ class PerguntaIaServiceTests {
                         "123.456.789-00");
 
         ArgumentCaptor<List> perguntas = ArgumentCaptor.forClass(List.class);
-        verify(perguntaService).salvarLoteEmCaso(
+        verify(transactionService).salvarComAuditoria(
                 org.mockito.ArgumentMatchers.eq(1L),
                 perguntas.capture(),
                 anyString(),
-                org.mockito.ArgumentMatchers.eq(0L));
+                org.mockito.ArgumentMatchers.eq(0L),
+                anyString(),
+                any());
         List<pergunta_request_DTO> perguntasMapeadas = perguntas.getValue();
         assertThat(perguntasMapeadas).hasSize(2);
         assertThat(perguntasMapeadas.get(0).getTipo()).isEqualTo(TipoPergunta.MULTIPLA_ESCOLHA);
@@ -110,6 +127,7 @@ class PerguntaIaServiceTests {
                 conteudoRepository,
                 pacienteRepository,
                 perguntaService,
+                transactionService,
                 new ProtecaoDadosClinicosIa(),
                 "");
 
@@ -117,7 +135,13 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(ServicoIndisponivelException.class)
                 .hasMessage("Configure a variavel IA_CHAVE_API antes de gerar perguntas com IA");
 
-        verifyNoInteractions(aiClient, casoRepository, conteudoRepository, pacienteRepository, perguntaService);
+        verifyNoInteractions(
+                aiClient,
+                casoRepository,
+                conteudoRepository,
+                pacienteRepository,
+                perguntaService,
+                transactionService);
     }
 
     @Test
@@ -157,8 +181,8 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessage("A IA retornou uma quantidade de perguntas diferente da solicitada");
 
-        verify(perguntaService, never()).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     @Test
@@ -173,8 +197,8 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessage("O gabarito retornado pela IA nao corresponde a alternativa correta");
 
-        verify(perguntaService, never()).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     @Test
@@ -190,8 +214,8 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessage("A IA retornou perguntas duplicadas");
 
-        verify(perguntaService, never()).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     @Test
@@ -206,8 +230,8 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessage("A IA deve identificar as alternativas com letras sequenciais de A ate D");
 
-        verify(perguntaService, never()).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     @Test
@@ -223,8 +247,8 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessage("A IA retornou textos de alternativas duplicados");
 
-        verify(perguntaService, never()).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     @Test
@@ -235,7 +259,8 @@ class PerguntaIaServiceTests {
                 1,
                 TipoPergunta.DISCURSIVA,
                 null,
-                null);
+                null,
+                true);
         PerguntaGeradaIaDTO perguntaGerada = new PerguntaGeradaIaDTO(
                 "Explique o raciocinio diagnostico.",
                 "Rubrica: integrar achados clinicos, hipotese e justificativa.",
@@ -243,17 +268,20 @@ class PerguntaIaServiceTests {
                 List.of());
         when(aiClient.gerarPerguntas(any(), any()))
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
-        when(perguntaService.salvarLoteEmCaso(anyLong(), any(), anyString(), anyLong()))
+        when(transactionService.salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any()))
                 .thenReturn(List.of(new pergunta_response_DTO()));
 
         service.gerarPerguntas(1L, request);
 
         ArgumentCaptor<List> perguntas = ArgumentCaptor.forClass(List.class);
-        verify(perguntaService).salvarLoteEmCaso(
+        verify(transactionService).salvarComAuditoria(
                 org.mockito.ArgumentMatchers.eq(1L),
                 perguntas.capture(),
                 anyString(),
-                org.mockito.ArgumentMatchers.eq(0L));
+                org.mockito.ArgumentMatchers.eq(0L),
+                anyString(),
+                any());
         pergunta_request_DTO pergunta = (pergunta_request_DTO) perguntas.getValue().get(0);
         assertThat(pergunta.getTipo()).isEqualTo(TipoPergunta.DISCURSIVA);
         assertThat(pergunta.getAlternativas()).isEmpty();
@@ -266,7 +294,8 @@ class PerguntaIaServiceTests {
                 1,
                 TipoPergunta.VERDADEIRO_FALSO,
                 null,
-                null);
+                null,
+                true);
         PerguntaGeradaIaDTO perguntaGerada = new PerguntaGeradaIaDTO(
                 "Antibiotico e sempre indicado neste quadro.",
                 "A indicacao depende da etiologia e da avaliacao clinica.",
@@ -279,8 +308,8 @@ class PerguntaIaServiceTests {
                 .isInstanceOf(AiProviderException.class)
                 .hasMessageContaining("VERDADEIRO ou FALSO");
 
-        verify(perguntaService, never()).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     @Test
@@ -290,7 +319,8 @@ class PerguntaIaServiceTests {
                 1,
                 TipoPergunta.DIAGNOSTICO,
                 null,
-                null);
+                null,
+                true);
         PerguntaGeradaIaDTO perguntaGerada = new PerguntaGeradaIaDTO(
                 "Qual e o diagnostico mais provavel?",
                 "Os achados sustentam infeccao pulmonar adquirida na comunidade.",
@@ -298,13 +328,14 @@ class PerguntaIaServiceTests {
                 List.of());
         when(aiClient.gerarPerguntas(any(), any()))
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
-        when(perguntaService.salvarLoteEmCaso(anyLong(), any(), anyString(), anyLong()))
+        when(transactionService.salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any()))
                 .thenReturn(List.of(new pergunta_response_DTO()));
 
         service.gerarPerguntas(1L, requisicao);
 
-        verify(perguntaService).salvarLoteEmCaso(
-                anyLong(), any(), anyString(), anyLong());
+        verify(transactionService).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any());
     }
 
     private PerguntaIaService prepararCasoValido() {
@@ -325,6 +356,7 @@ class PerguntaIaServiceTests {
                 conteudoRepository,
                 pacienteRepository,
                 perguntaService,
+                transactionService,
                 new ProtecaoDadosClinicosIa(),
                 "chave-teste");
     }
@@ -334,7 +366,8 @@ class PerguntaIaServiceTests {
                 quantidade,
                 TipoPergunta.MULTIPLA_ESCOLHA,
                 4,
-                "Priorize a conduta inicial");
+                "Priorize a conduta inicial",
+                true);
     }
 
     private PerguntasGeradasIaDTO respostaValida(int quantidade) {

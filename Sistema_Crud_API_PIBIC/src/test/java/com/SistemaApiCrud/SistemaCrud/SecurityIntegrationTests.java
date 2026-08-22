@@ -226,7 +226,8 @@ class SecurityIntegrationTests {
                                 {
                                   "quantidade": 1,
                                   "tipo": "MULTIPLA_ESCOLHA",
-                                  "quantidadeAlternativas": 2
+                                  "quantidadeAlternativas": 2,
+                                  "dadosSinteticosOuDesidentificados": true
                                 }
                                 """))
                 .andExpect(status().isCreated())

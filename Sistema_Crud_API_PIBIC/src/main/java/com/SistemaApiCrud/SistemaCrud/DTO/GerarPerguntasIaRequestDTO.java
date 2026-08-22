@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.AssertTrue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,4 +32,8 @@ public class GerarPerguntasIaRequestDTO {
 
     @Size(max = 2000, message = "As instrucoes adicionais devem ter no maximo 2000 caracteres")
     private String instrucoesAdicionais;
+
+    @AssertTrue(message = "Confirme que os dados sao sinteticos ou foram desidentificados")
+    @NotNull(message = "A confirmacao sobre os dados enviados a IA e obrigatoria")
+    private Boolean dadosSinteticosOuDesidentificados;
 }
