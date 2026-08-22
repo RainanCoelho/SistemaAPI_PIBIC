@@ -379,6 +379,7 @@ class RespostaAlunoServiceTests {
                 caso.getIdCaso(),
                 requisicao);
         Long idResposta = resultado.getRespostas().get(0).getId();
+        Long idRevisor = usuarioRepository.findByUsername("admin").orElseThrow().getId();
 
         assertThat(respostaService.listarPendentesRevisao(
                 caso.getIdCaso(),
@@ -389,9 +390,12 @@ class RespostaAlunoServiceTests {
         var respostaRevisada = respostaService.revisarResposta(
                 caso.getIdCaso(),
                 idResposta,
-                true);
+                true,
+                "A resposta contempla os criterios essenciais da rubrica.",
+                idRevisor);
 
-        assertThat(respostaRevisada.getCorreta()).isTrue();
+        assertThat(respostaRevisada.correta()).isTrue();
+        assertThat(respostaRevisada.versaoRevisao()).isEqualTo(1L);
         assertThat(respostaService.listarPendentesRevisao(
                 caso.getIdCaso(),
                 PageRequest.of(0, 10))).isEmpty();
@@ -403,13 +407,21 @@ class RespostaAlunoServiceTests {
         assertThat(respostaService.revisarResposta(
                 caso.getIdCaso(),
                 idResposta,
-                true).getCorreta()).isTrue();
-        assertThatThrownBy(() -> respostaService.revisarResposta(
+                true,
+                "A resposta contempla os criterios essenciais da rubrica.",
+                idRevisor).correta()).isTrue();
+
+        var revisaoCorrigida = respostaService.revisarResposta(
                 caso.getIdCaso(),
                 idResposta,
-                false))
-                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException.class)
-                .hasMessage("A resposta ja foi revisada com um resultado diferente");
+                false,
+                "Correcao: faltou justificar a prioridade da conduta.",
+                idRevisor);
+        assertThat(revisaoCorrigida.correta()).isFalse();
+        assertThat(revisaoCorrigida.versaoRevisao()).isEqualTo(2L);
+        assertThat(respostaService.listarHistoricoRevisoes(caso.getIdCaso(), idResposta))
+                .extracting(revisao -> revisao.correta())
+                .containsExactly(true, false);
     }
 
     @Test

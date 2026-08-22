@@ -358,7 +358,7 @@ class SecurityIntegrationTests {
         mockMvc.perform(patch("/casos/" + caso.getIdCaso() + "/respostas/1/revisao")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"correta\":true}"))
+                        .content("{\"correta\":true,\"justificativa\":\"Revisao administrativa\"}"))
                 .andExpect(status().isForbidden());
     }
 

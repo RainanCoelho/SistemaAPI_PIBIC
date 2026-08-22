@@ -1,5 +1,7 @@
 package com.SistemaApiCrud.SistemaCrud.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -24,6 +26,7 @@ import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_response_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.RevisarRespostaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.RevisaoRespostaDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.resposta_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.service.AutorizacaoUsuarioService;
@@ -126,7 +129,7 @@ public class caso_clinico_controller {
     }
 
     @PatchMapping("/{id}/respostas/{idResposta}/revisao")
-    public ResponseEntity<resposta_aluno_DTO> revisarResposta(
+    public ResponseEntity<RevisaoRespostaDTO> revisarResposta(
             @PathVariable @Min(1) Long id,
             @PathVariable @Min(1) Long idResposta,
             @RequestBody @Valid RevisarRespostaRequestDTO requisicao) {
@@ -134,7 +137,17 @@ public class caso_clinico_controller {
         return ResponseEntity.ok(servicoRespostaAluno.revisarResposta(
                 id,
                 idResposta,
-                requisicao.getCorreta()));
+                requisicao.getCorreta(),
+                requisicao.getJustificativa(),
+                autorizacaoService.getIdUsuarioAutenticado()));
+    }
+
+    @GetMapping("/{id}/respostas/{idResposta}/revisoes")
+    public List<RevisaoRespostaDTO> listarHistoricoRevisoes(
+            @PathVariable @Min(1) Long id,
+            @PathVariable @Min(1) Long idResposta) {
+        autorizacaoService.validarAcessoCaso(id);
+        return servicoRespostaAluno.listarHistoricoRevisoes(id, idResposta);
     }
 
     @DeleteMapping("/{id}")

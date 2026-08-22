@@ -1,6 +1,8 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
 import java.text.Normalizer;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.SistemaApiCrud.SistemaCrud.DTO.desempenho_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.historico_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.relatorio_desempenho_professor_DTO;
+import com.SistemaApiCrud.SistemaCrud.DTO.RevisaoRespostaDTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.responder_caso_request_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.resposta_aluno_DTO;
 import com.SistemaApiCrud.SistemaCrud.DTO.resposta_pergunta_request_DTO;
@@ -23,13 +26,14 @@ import com.SistemaApiCrud.SistemaCrud.DTO.resultado_caso_DTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AlternativaPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.Aluno;
 import com.SistemaApiCrud.SistemaCrud.entity.RespostaAluno;
+import com.SistemaApiCrud.SistemaCrud.entity.RevisaoRespostaAluno;
+import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.BadRequestException;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
-import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.repository.alternativa_pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.aluno_repository;
@@ -37,6 +41,8 @@ import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
 import com.SistemaApiCrud.SistemaCrud.repository.resposta_aluno_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.revisao_resposta_aluno_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
 
 @Service
 public class resposta_aluno_service {
@@ -48,6 +54,8 @@ public class resposta_aluno_service {
     private final alternativa_pergunta_repository alternativaRepository;
     private final professor_repository professorRepository;
     private final TentativaCasoService tentativaCasoService;
+    private final revisao_resposta_aluno_repository revisaoRepository;
+    private final usuario_repository usuarioRepository;
 
     public resposta_aluno_service(
             resposta_aluno_repository repository,
@@ -56,7 +64,9 @@ public class resposta_aluno_service {
             pergunta_repository perguntaRepository,
             alternativa_pergunta_repository alternativaRepository,
             professor_repository professorRepository,
-            TentativaCasoService tentativaCasoService) {
+            TentativaCasoService tentativaCasoService,
+            revisao_resposta_aluno_repository revisaoRepository,
+            usuario_repository usuarioRepository) {
         this.repository = repository;
         this.alunoRepository = alunoRepository;
         this.casoRepository = casoRepository;
@@ -64,6 +74,8 @@ public class resposta_aluno_service {
         this.alternativaRepository = alternativaRepository;
         this.professorRepository = professorRepository;
         this.tentativaCasoService = tentativaCasoService;
+        this.revisaoRepository = revisaoRepository;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Transactional
@@ -190,18 +202,16 @@ public class resposta_aluno_service {
     }
 
     @Transactional
-    public resposta_aluno_DTO revisarResposta(
+    public RevisaoRespostaDTO revisarResposta(
             Long idCaso,
             Long idResposta,
-            Boolean correta) {
+            Boolean correta,
+            String justificativa,
+            Long idRevisor) {
         RespostaAluno resposta = repository.buscarPorIdParaAtualizacao(idResposta)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Resposta do aluno nao encontrada"));
-        if (resposta.getCasoClinico() == null
-                || !idCaso.equals(resposta.getCasoClinico().getIdCaso())) {
-            throw new BadRequestException(
-                    "A resposta informada nao pertence ao caso clinico");
-        }
+        validarRespostaDoCaso(idCaso, resposta);
 
         pergunta perguntaRespondida = resposta.getPergunta();
         TipoPergunta tipo = perguntaRespondida == null ? null : perguntaRespondida.getTipo();
@@ -210,16 +220,85 @@ public class resposta_aluno_service {
                     "Somente respostas discursivas ou de conduta aceitam revisao humana");
         }
 
-        if (resposta.getCorreta() != null) {
-            if (resposta.getCorreta().equals(correta)) {
-                return paraDTO(resposta);
-            }
-            throw new ConflitoEstadoException(
-                    "A resposta ja foi revisada com um resultado diferente");
+        if (justificativa == null || justificativa.isBlank()) {
+            throw new BadRequestException("A justificativa da revisao e obrigatoria");
+        }
+        Usuario revisor = usuarioRepository.findById(idRevisor)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Usuario revisor nao encontrado"));
+        String justificativaNormalizada = justificativa.trim();
+        var ultimaRevisao = revisaoRepository
+                .findFirstByRespostaIdOrderByVersaoRevisaoDesc(idResposta);
+        if (ultimaRevisao.isPresent()
+                && mesmaRevisao(
+                        ultimaRevisao.get(),
+                        revisor,
+                        correta,
+                        justificativaNormalizada)) {
+            return paraRevisaoDTO(ultimaRevisao.get());
         }
 
+        long novaVersao = resposta.getVersaoRevisao() + 1;
+        Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
         resposta.setCorreta(correta);
-        return paraDTO(repository.save(resposta));
+        resposta.setRevisor(revisor);
+        resposta.setDataRevisao(agora);
+        resposta.setJustificativaRevisao(justificativaNormalizada);
+        resposta.setVersaoRevisao(novaVersao);
+        repository.save(resposta);
+
+        RevisaoRespostaAluno revisao = new RevisaoRespostaAluno();
+        revisao.setResposta(resposta);
+        revisao.setRevisor(revisor);
+        revisao.setCorreta(correta);
+        revisao.setJustificativa(justificativaNormalizada);
+        revisao.setDataRevisao(agora);
+        revisao.setVersaoRevisao(novaVersao);
+        return paraRevisaoDTO(revisaoRepository.save(revisao));
+    }
+
+    @Transactional(readOnly = true)
+    public List<RevisaoRespostaDTO> listarHistoricoRevisoes(
+            Long idCaso,
+            Long idResposta) {
+        RespostaAluno resposta = repository.findById(idResposta)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Resposta do aluno nao encontrada"));
+        validarRespostaDoCaso(idCaso, resposta);
+        return revisaoRepository.findByRespostaIdOrderByVersaoRevisaoAsc(idResposta)
+                .stream()
+                .map(this::paraRevisaoDTO)
+                .toList();
+    }
+
+    private void validarRespostaDoCaso(Long idCaso, RespostaAluno resposta) {
+        if (resposta.getCasoClinico() == null
+                || !idCaso.equals(resposta.getCasoClinico().getIdCaso())) {
+            throw new BadRequestException(
+                    "A resposta informada nao pertence ao caso clinico");
+        }
+    }
+
+    private boolean mesmaRevisao(
+            RevisaoRespostaAluno revisao,
+            Usuario revisor,
+            Boolean correta,
+            String justificativa) {
+        return revisao.getRevisor() != null
+                && revisao.getRevisor().getId().equals(revisor.getId())
+                && revisao.getCorreta().equals(correta)
+                && revisao.getJustificativa().equals(justificativa);
+    }
+
+    private RevisaoRespostaDTO paraRevisaoDTO(RevisaoRespostaAluno revisao) {
+        return new RevisaoRespostaDTO(
+                revisao.getId(),
+                revisao.getResposta().getId(),
+                revisao.getRevisor().getId(),
+                revisao.getCorreta(),
+                revisao.getJustificativa(),
+                revisao.getDataRevisao(),
+                revisao.getVersaoRevisao());
     }
 
     private RespostaAluno criarResposta(

@@ -42,6 +42,10 @@ public class AutorizacaoUsuarioService {
         return getUsuarioAutenticado().getRole() == PapelUsuario.ADMIN;
     }
 
+    public Long getIdUsuarioAutenticado() {
+        return getUsuarioAutenticado().getId();
+    }
+
     public Long getIdProfessorAutenticado() {
         Usuario usuario = getUsuarioAutenticado();
         if (usuario.getRole() != PapelUsuario.PROFESSOR || usuario.getProfessor() == null) {
