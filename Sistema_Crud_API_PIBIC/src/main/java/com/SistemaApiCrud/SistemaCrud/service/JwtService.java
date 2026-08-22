@@ -1,94 +1,134 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 
-import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 
 @Service
 public class JwtService {
 
-    private static final String ALGORITHM = "HmacSHA256";
+    private static final int TAMANHO_MAXIMO_TOKEN = 8_192;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JwtEncoder encoder;
+    private final JwtDecoder decoder;
+    private final long expirationMinutes;
+    private final String issuer;
+    private final String audience;
 
-    @Value("${app.security.jwt.secret}")
-    private String secret;
+    public JwtService(
+            @Value("${app.security.jwt.secret}") String secret,
+            @Value("${app.security.jwt.expiration-minutes:120}") long expirationMinutes,
+            @Value("${app.security.jwt.issuer:sistema-api-pibic}") String issuer,
+            @Value("${app.security.jwt.audience:sistema-api-pibic-clients}") String audience) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalArgumentException("O segredo JWT deve ser informado");
+        }
+        if (expirationMinutes < 1 || issuer.isBlank() || audience.isBlank()) {
+            throw new IllegalArgumentException("A configuracao do JWT e invalida");
+        }
 
-    @Value("${app.security.jwt.expiration-minutes:120}")
-    private long expirationMinutes;
+        SecretKey key = new SecretKeySpec(
+                secret.getBytes(StandardCharsets.UTF_8),
+                "HmacSHA256");
+        this.encoder = NimbusJwtEncoder.withSecretKey(key)
+                .algorithm(MacAlgorithm.HS256)
+                .build();
+
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(key)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
+        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(issuer),
+                new JwtClaimValidator<List<String>>("aud", audiencias ->
+                        audiencias != null && audiencias.contains(audience)),
+                new JwtClaimValidator<>("exp", Objects::nonNull),
+                new JwtClaimValidator<>("nbf", Objects::nonNull),
+                new JwtClaimValidator<String>("sub", subject ->
+                        subject != null && !subject.isBlank())));
+        this.decoder = jwtDecoder;
+        this.expirationMinutes = expirationMinutes;
+        this.issuer = issuer;
+        this.audience = audience;
+    }
 
     public String gerarToken(Authentication authentication) {
         return gerarToken(authentication, 0L);
     }
 
     public String gerarToken(Authentication authentication, Usuario usuario) {
-        long versaoCredencial = usuario.getVersaoCredencial() == null ? 0L : usuario.getVersaoCredencial();
+        long versaoCredencial = usuario.getVersaoCredencial() == null
+                ? 0L
+                : usuario.getVersaoCredencial();
         return gerarToken(authentication, versaoCredencial);
     }
 
     private String gerarToken(Authentication authentication, long versaoCredencial) {
-        Instant agora = Instant.now();
+        Instant agora = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         Instant expiraEm = agora.plus(expirationMinutes, ChronoUnit.MINUTES);
-
         List<String> roles = authentication.getAuthorities()
                 .stream()
                 .map(authority -> authority.getAuthority())
                 .filter(authority -> authority.startsWith("ROLE_"))
                 .toList();
 
-        Map<String, Object> header = Map.of(
-                "alg", "HS256",
-                "typ", "JWT");
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256)
+                .type("JWT")
+                .build();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer(issuer)
+                .subject(authentication.getName())
+                .audience(List.of(audience))
+                .issuedAt(agora)
+                .notBefore(agora)
+                .expiresAt(expiraEm)
+                .claim("roles", roles)
+                .claim("ver", versaoCredencial)
+                .build();
 
-        Map<String, Object> payload = Map.of(
-                "sub", authentication.getName(),
-                "roles", roles,
-                "ver", versaoCredencial,
-                "iat", agora.getEpochSecond(),
-                "exp", expiraEm.getEpochSecond());
-
-        String headerBase64 = base64Url(toJson(header));
-        String payloadBase64 = base64Url(toJson(payload));
-        String conteudo = headerBase64 + "." + payloadBase64;
-
-        return conteudo + "." + assinar(conteudo);
+        return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 
     public boolean isTokenValido(String token) {
         try {
-            Map<String, Object> claims = lerClaims(token);
-            return assinaturaValida(token) && getExpiraEm(claims).isAfter(Instant.now());
-        } catch (RuntimeException ex) {
+            decodificar(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }
     }
 
     public Authentication criarAuthentication(String token) {
-        Map<String, Object> claims = lerClaims(token);
-        String username = (String) claims.get("sub");
-
-        List<SimpleGrantedAuthority> authorities = getRoles(claims).stream()
+        Jwt jwt = decodificar(token);
+        List<SimpleGrantedAuthority> authorities = getRoles(jwt).stream()
                 .map(SimpleGrantedAuthority::new)
                 .toList();
-
-        return new UsernamePasswordAuthenticationToken(username, null, authorities);
+        return new UsernamePasswordAuthenticationToken(jwt.getSubject(), null, authorities);
     }
 
     public Authentication criarAuthentication(String token, Usuario usuario) {
@@ -96,7 +136,6 @@ public class JwtService {
         if (!usuario.getUsername().equals(username)) {
             throw new IllegalArgumentException("Token invalido");
         }
-
         return new UsernamePasswordAuthenticationToken(
                 usuario.getUsername(),
                 null,
@@ -104,93 +143,38 @@ public class JwtService {
     }
 
     public String getUsername(String token) {
-        Object subject = lerClaims(token).get("sub");
-        if (subject instanceof String username && !username.isBlank()) {
-            return username;
+        String subject = decodificar(token).getSubject();
+        if (subject != null && !subject.isBlank()) {
+            return subject;
         }
         throw new IllegalArgumentException("Token sem usuario");
     }
 
     public long getVersaoCredencial(String token) {
-        Object versao = lerClaims(token).get("ver");
-        if (versao instanceof Number number) {
-            return number.longValue();
-        }
-        return 0L;
+        Object versao = decodificar(token).getClaim("ver");
+        return versao instanceof Number number ? number.longValue() : 0L;
     }
 
     public Instant getExpiraEm(String token) {
-        return getExpiraEm(lerClaims(token));
-    }
-
-    private boolean assinaturaValida(String token) {
-        String[] partes = token.split("\\.");
-        if (partes.length != 3) {
-            return false;
+        Instant expiraEm = decodificar(token).getExpiresAt();
+        if (expiraEm == null) {
+            throw new IllegalArgumentException("Token sem expiracao");
         }
-
-        String conteudo = partes[0] + "." + partes[1];
-        String assinaturaEsperada = assinar(conteudo);
-
-        return MessageDigest.isEqual(
-                assinaturaEsperada.getBytes(StandardCharsets.UTF_8),
-                partes[2].getBytes(StandardCharsets.UTF_8));
+        return expiraEm;
     }
 
-    private Map<String, Object> lerClaims(String token) {
-        String[] partes = token.split("\\.");
-        if (partes.length != 3) {
+    private Jwt decodificar(String token) {
+        if (token == null || token.isBlank() || token.length() > TAMANHO_MAXIMO_TOKEN) {
             throw new IllegalArgumentException("Token invalido");
         }
-
-        try {
-            byte[] payload = Base64.getUrlDecoder().decode(partes[1]);
-            return objectMapper.readValue(payload, new TypeReference<>() {});
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("Token invalido", ex);
-        }
+        return decoder.decode(token);
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> getRoles(Map<String, Object> claims) {
-        Object roles = claims.get("roles");
-        if (roles instanceof List<?>) {
-            return ((List<?>) roles).stream()
-                    .map(String::valueOf)
-                    .toList();
+    private List<String> getRoles(Jwt jwt) {
+        Object roles = jwt.getClaim("roles");
+        if (roles instanceof List<?> lista) {
+            return lista.stream().map(String::valueOf).toList();
         }
-
         return List.of();
-    }
-
-    private Instant getExpiraEm(Map<String, Object> claims) {
-        Object exp = claims.get("exp");
-        if (exp instanceof Number number) {
-            return Instant.ofEpochSecond(number.longValue());
-        }
-
-        throw new IllegalArgumentException("Token sem expiracao");
-    }
-
-    private byte[] toJson(Map<String, Object> valor) {
-        try {
-            return objectMapper.writeValueAsBytes(valor);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Nao foi possivel gerar o token", ex);
-        }
-    }
-
-    private String base64Url(byte[] valor) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(valor);
-    }
-
-    private String assinar(String conteudo) {
-        try {
-            Mac mac = Mac.getInstance(ALGORITHM);
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), ALGORITHM));
-            return base64Url(mac.doFinal(conteudo.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            throw new IllegalStateException("Nao foi possivel assinar o token", ex);
-        }
     }
 }
