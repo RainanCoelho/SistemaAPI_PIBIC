@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,6 +55,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class SecurityIntegrationTests {
 
     private static final String FRONT_ORIGIN = "http://localhost:5173";
+    private static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
 
     @Autowired
     private MockMvc mockMvc;
@@ -92,10 +94,18 @@ class SecurityIntegrationTests {
         mockMvc.perform(options("/auth/login")
                         .header(HttpHeaders.ORIGIN, FRONT_ORIGIN)
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
-                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"))
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
+                                "content-type,x-correlation-id"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FRONT_ORIGIN))
-                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
+                .andExpect(resultado -> assertThat(resultado.getResponse().getHeader(
+                        HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS))
+                        .containsIgnoringCase("x-correlation-id"))
+                .andExpect(resultado -> assertThat(resultado.getResponse().getHeader(
+                        HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS))
+                        .containsIgnoringCase(CORRELATION_ID_HEADER));
     }
 
     @Test
@@ -112,6 +122,13 @@ class SecurityIntegrationTests {
                 .andExpect(header().string(
                         HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
                         FRONT_ORIGIN))
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(413))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:corpo-requisicao-excedido"))
+                .andExpect(jsonPath("$.timestamp").isString())
+                .andExpect(jsonPath("$.correlationId").isNotEmpty())
                 .andExpect(jsonPath("$.erro").value(
                         "O corpo da requisicao excede o limite permitido"));
     }
@@ -246,7 +263,14 @@ class SecurityIntegrationTests {
 
         mockMvc.perform(get("/pacientes")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:acesso-negado"))
+                .andExpect(jsonPath("$.timestamp").isString())
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
 
         mockMvc.perform(get("/conteudos")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
@@ -266,7 +290,80 @@ class SecurityIntegrationTests {
                                   "senha": "senha-forte-123"
                                 }
                                 """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:nao-autenticado"))
+                .andExpect(jsonPath("$.timestamp").isString())
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+    }
+
+    @Test
+    void devePadronizarErrosDeValidacaoENaoEncontrado() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"\",\"password\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:dados-invalidos"))
+                .andExpect(jsonPath("$.errors.username").isNotEmpty())
+                .andExpect(jsonPath("$.errors.password").isNotEmpty())
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+
+        String token = (String) login("admin", "admin123").get("token");
+        mockMvc.perform(get("/usuarios/999999999")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:recurso-nao-encontrado"))
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+
+    }
+
+    @Test
+    void devePadronizarConflitoDeEstado() throws Exception {
+        String token = (String) login("professor", "professor123").get("token");
+        Professor professor = usuarioRepository.findByUsername("professor")
+                .orElseThrow()
+                .getProfessor();
+
+        casos_clinicos caso = new casos_clinicos();
+        caso.setProfessor(professor);
+        caso.setTitulo("Caso publicado para conflito");
+        caso.setDificuldade("MEDIA");
+        caso.setDisciplina("Clinica");
+        caso.setAreaSaude("Medicina");
+        caso.setEstilo("Discursiva");
+        caso.setEspecialidade("Clinica medica");
+        caso.setStatus(StatusCasoClinico.PUBLICADO);
+        caso = casoRepository.saveAndFlush(caso);
+
+        mockMvc.perform(post("/perguntas/caso/" + caso.getIdCaso())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "texto": "Qual e o diagnostico?",
+                                  "resposta": "Resposta discursiva",
+                                  "tipo": "DISCURSIVA",
+                                  "gabarito": "Resposta esperada"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:conflito-de-estado"))
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
     }
 
     @Test
@@ -407,7 +504,13 @@ class SecurityIntegrationTests {
                                 }
                                 """))
                 .andExpect(status().isTooManyRequests())
-                .andExpect(header().exists(HttpHeaders.RETRY_AFTER));
+                .andExpect(header().exists(HttpHeaders.RETRY_AFTER))
+                .andExpect(header().exists(CORRELATION_ID_HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.type").value(
+                        "urn:sistema-api-pibic:problem:muitas-tentativas-login"))
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
     }
 
     private Map<String, Object> login(String username, String password) throws Exception {

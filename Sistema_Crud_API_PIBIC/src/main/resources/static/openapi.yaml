@@ -37,7 +37,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
         "401":
-          description: Credenciais invalidas
+          $ref: "#/components/responses/NaoAutenticado"
         "429":
           $ref: "#/components/responses/LimiteAtingido"
         "413":
@@ -45,9 +45,17 @@ paths:
   /alunos:
     get:
       summary: Lista alunos
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
       responses:
         "200":
           description: Alunos encontrados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaAluno"
     post:
       summary: Cadastra aluno
       requestBody:
@@ -64,15 +72,17 @@ paths:
   /usuarios:
     get:
       summary: Lista usuarios de acesso
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
       responses:
         "200":
           description: Usuarios encontrados
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UsuarioResponse"
+                $ref: "#/components/schemas/PaginaUsuario"
     post:
       summary: Cadastra usuario com senha BCrypt e role
       requestBody:
@@ -134,7 +144,7 @@ paths:
         "200":
           description: Aluno encontrado
         "404":
-          description: Aluno nao encontrado
+          $ref: "#/components/responses/NaoEncontrado"
     put:
       summary: Atualiza aluno
       parameters:
@@ -154,9 +164,16 @@ paths:
       summary: Lista casos publicados disponiveis para o aluno
       parameters:
         - $ref: "#/components/parameters/id"
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
       responses:
         "200":
           description: Casos publicados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaCasoClinico"
   /alunos/{id}/casos/{casoId}/completo:
     get:
       summary: Abre o caso publicado e inicia ou retoma a tentativa do aluno
@@ -171,7 +188,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CasoClinicoAluno"
         "400":
-          description: Caso ainda nao publicado
+          $ref: "#/components/responses/DadosInvalidos"
   /alunos/{id}/casos/{casoId}/responder:
     post:
       summary: Registra respostas de um aluno para um caso publicado
@@ -220,14 +237,59 @@ paths:
   /professores:
     get:
       summary: Lista professores
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
       responses:
         "200":
           description: Professores encontrados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaProfessor"
     post:
       summary: Cadastra professor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfessorRequest"
       responses:
         "201":
           description: Professor criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessorResponse"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+  /professores/cadastro:
+    post:
+      summary: Cadastra professor e sua credencial de acesso
+      description: Operacao restrita a administradores.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfessorCadastroRequest"
+      responses:
+        "201":
+          description: Professor e credencial criados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessorResponse"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "409":
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
   /professores/{id}:
@@ -238,13 +300,27 @@ paths:
       responses:
         "200":
           description: Professor encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessorResponse"
     put:
       summary: Atualiza professor
       parameters:
         - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfessorRequest"
       responses:
         "200":
           description: Professor atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessorResponse"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
     delete:
@@ -259,9 +335,16 @@ paths:
       summary: Lista casos de um professor
       parameters:
         - $ref: "#/components/parameters/id"
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
       responses:
         "200":
           description: Casos do professor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaCasoClinico"
   /professores/{id}/relatorio-desempenho:
     get:
       summary: Gera relatorio de desempenho do professor
@@ -274,6 +357,337 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RelatorioDesempenhoProfessor"
+  /pacientes:
+    get:
+      summary: Lista pacientes acessiveis ao usuario autenticado
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Pagina de pacientes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaPaciente"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+    post:
+      summary: Cria paciente em um caso clinico em rascunho
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Paciente"
+      responses:
+        "201":
+          description: Paciente criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paciente"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+  /pacientes/{id}:
+    get:
+      summary: Busca paciente por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Paciente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paciente"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      summary: Atualiza paciente de um caso clinico em rascunho
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Paciente"
+      responses:
+        "200":
+          description: Paciente atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paciente"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+    delete:
+      summary: Remove paciente de um caso clinico em rascunho
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Paciente removido
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+  /conteudos:
+    get:
+      summary: Lista conteudos clinicos acessiveis ao usuario autenticado
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Pagina de conteudos clinicos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaConteudoClinico"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+    post:
+      summary: Cria conteudo clinico em um caso em rascunho
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConteudoClinico"
+      responses:
+        "201":
+          description: Conteudo clinico criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoClinico"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+  /conteudos/{id}:
+    get:
+      summary: Busca conteudo clinico por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Conteudo clinico encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoClinico"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      summary: Atualiza conteudo clinico de um caso em rascunho
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConteudoClinico"
+      responses:
+        "200":
+          description: Conteudo clinico atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoClinico"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+    delete:
+      summary: Remove conteudo clinico de um caso em rascunho
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Conteudo clinico removido
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+  /perguntas:
+    get:
+      summary: Lista perguntas acessiveis ao usuario autenticado
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Pagina de perguntas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaPergunta"
+    post:
+      summary: Cria pergunta no caso informado no corpo
+      description: O campo idCaso e obrigatorio neste endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerguntaRequest"
+      responses:
+        "201":
+          description: Pergunta criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerguntaResponse"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+  /perguntas/{id}:
+    get:
+      summary: Busca pergunta por ID
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Pergunta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerguntaResponse"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      summary: Atualiza pergunta de um caso em rascunho
+      parameters:
+        - $ref: "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerguntaRequest"
+      responses:
+        "200":
+          description: Pergunta atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerguntaResponse"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
+    delete:
+      summary: Remove pergunta de um caso em rascunho
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Pergunta removida
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+  /perguntas/caso/{casoId}:
+    get:
+      summary: Lista perguntas de um caso com paginacao
+      parameters:
+        - $ref: "#/components/parameters/casoId"
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Pagina de perguntas do caso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaPergunta"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    post:
+      summary: Cria pergunta no caso indicado no caminho
+      description: O caso do caminho e usado; idCaso no corpo e opcional.
+      parameters:
+        - $ref: "#/components/parameters/casoId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerguntaRequest"
+      responses:
+        "201":
+          description: Pergunta criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerguntaResponse"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/Conflito"
+        "413":
+          $ref: "#/components/responses/CorpoRequisicaoExcedido"
   /casos:
     get:
       summary: Lista casos clinicos com paginacao e filtros
@@ -311,6 +725,10 @@ paths:
       responses:
         "200":
           description: Casos encontrados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaCasoClinico"
     post:
       summary: Cria caso clinico
       requestBody:
@@ -350,7 +768,7 @@ paths:
         "200":
           description: Caso atualizado
         "409":
-          description: O caso clinico so pode ser atualizado enquanto estiver em RASCUNHO
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
     delete:
@@ -361,7 +779,7 @@ paths:
         "204":
           description: Caso removido
         "409":
-          description: O caso clinico so pode ser removido enquanto estiver em RASCUNHO
+          $ref: "#/components/responses/Conflito"
   /casos/{id}/completo:
     get:
       summary: Busca caso completo com pacientes, conteudos e perguntas
@@ -379,7 +797,7 @@ paths:
         "200":
           description: Caso publicado
         "409":
-          description: O caso clinico ja saiu do estado RASCUNHO
+          $ref: "#/components/responses/Conflito"
   /casos/{id}/ia/gerar:
     post:
       summary: Gera conteudo clinico com apoio da IA
@@ -403,17 +821,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/CasoClinicoIAResponse"
         "400":
-          description: Dados invalidos
+          $ref: "#/components/responses/DadosInvalidos"
         "403":
-          description: Usuario sem acesso ao caso clinico
+          $ref: "#/components/responses/AcessoNegado"
         "409":
-          description: O caso saiu do estado RASCUNHO ou mudou durante a geracao
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
         "429":
           $ref: "#/components/responses/LimiteAtingido"
         "502":
-          description: Falha no provedor de IA
+          $ref: "#/components/responses/FalhaProvedorIa"
         "503":
           $ref: "#/components/responses/CapacidadeIaIndisponivel"
         "504":
@@ -441,17 +859,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/CasoClinicoIAResponse"
         "400":
-          description: Dados invalidos
+          $ref: "#/components/responses/DadosInvalidos"
         "403":
-          description: Usuario sem acesso ao caso clinico
+          $ref: "#/components/responses/AcessoNegado"
         "409":
-          description: O caso ou seu conteudo mudou durante o ajuste
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
         "429":
           $ref: "#/components/responses/LimiteAtingido"
         "502":
-          description: Falha no provedor de IA
+          $ref: "#/components/responses/FalhaProvedorIa"
         "503":
           $ref: "#/components/responses/CapacidadeIaIndisponivel"
         "504":
@@ -481,23 +899,45 @@ paths:
                 items:
                   $ref: "#/components/schemas/PerguntaResponse"
         "400":
-          description: Parametros de geracao invalidos
+          $ref: "#/components/responses/DadosInvalidos"
         "403":
-          description: Usuario sem acesso ao caso clinico
+          $ref: "#/components/responses/AcessoNegado"
         "404":
-          description: Caso clinico nao encontrado
+          $ref: "#/components/responses/NaoEncontrado"
         "409":
-          description: O caso saiu do estado RASCUNHO ou seu contexto/perguntas mudou durante a geracao
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
         "429":
           $ref: "#/components/responses/LimiteAtingido"
         "502":
-          description: Falha no provedor de IA ao gerar as perguntas
+          $ref: "#/components/responses/FalhaProvedorIa"
         "503":
           $ref: "#/components/responses/CapacidadeIaIndisponivel"
         "504":
           $ref: "#/components/responses/TempoEsgotadoIa"
+  /casos/{id}/ia/auditoria:
+    get:
+      summary: Lista a trilha de auditoria das geracoes por IA do caso
+      description: |
+        Retorna somente metadados, hashes e referencias de proveniencia; o
+        conteudo clinico e a saida do modelo nao sao duplicados nesta trilha.
+      parameters:
+        - $ref: "#/components/parameters/id"
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Pagina de eventos de geracao por IA
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaAuditoriaGeracaoIa"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
   /casos/{id}/respostas/pendentes-revisao:
     get:
       summary: Lista respostas discursivas ou de conduta pendentes de revisao
@@ -530,9 +970,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaginaRespostaAluno"
         "403":
-          description: Usuario sem acesso ao caso clinico
+          $ref: "#/components/responses/AcessoNegado"
         "404":
-          description: Caso clinico nao encontrado
+          $ref: "#/components/responses/NaoEncontrado"
   /casos/{id}/respostas/{idResposta}/revisao:
     patch:
       summary: Registra a revisao humana de uma resposta discursiva ou de conduta
@@ -560,25 +1000,59 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RespostaAluno"
+                $ref: "#/components/schemas/RevisaoResposta"
         "400":
-          description: Dados invalidos, resposta de outro caso ou tipo sem revisao humana
+          $ref: "#/components/responses/DadosInvalidos"
         "403":
-          description: Usuario sem acesso ao caso clinico
+          $ref: "#/components/responses/AcessoNegado"
         "404":
-          description: Caso clinico ou resposta nao encontrada
+          $ref: "#/components/responses/NaoEncontrado"
         "409":
-          description: A resposta ja foi revisada com um resultado diferente
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
+  /casos/{id}/respostas/{idResposta}/revisoes:
+    get:
+      summary: Lista o historico imutavel de revisoes de uma resposta
+      parameters:
+        - $ref: "#/components/parameters/id"
+        - name: idResposta
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "200":
+          description: Revisoes em ordem cronologica
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevisaoResposta"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
   /casos/{casoId}/perguntas:
     get:
       summary: Lista perguntas de um caso
       parameters:
         - $ref: "#/components/parameters/casoId"
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
       responses:
         "200":
           description: Perguntas encontradas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaPergunta"
     post:
       summary: Cria pergunta vinculada ao caso
       parameters:
@@ -593,7 +1067,7 @@ paths:
         "201":
           description: Pergunta criada
         "409":
-          description: O caso clinico so pode receber perguntas enquanto estiver em RASCUNHO
+          $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
 components:
@@ -619,18 +1093,53 @@ components:
         type: integer
         format: int64
         minimum: 1
+    page:
+      name: page
+      in: query
+      description: Indice da pagina, iniciando em zero.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    size:
+      name: size
+      in: query
+      description: Quantidade de elementos por pagina.
+      schema:
+        type: integer
+        minimum: 1
+        default: 20
+    sort:
+      name: sort
+      in: query
+      description: Ordenacao no formato campo,direcao.
+      schema:
+        type: string
+        example: nome,asc
   responses:
     CorpoRequisicaoExcedido:
       description: O corpo da requisicao excede o limite configurado.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErroResponse"
+            $ref: "#/components/schemas/Problem"
           example:
+            type: urn:sistema-api-pibic:problem:corpo-requisicao-excedido
+            title: Corpo da requisicao excedido
+            status: 413
+            detail: O corpo da requisicao excede o limite permitido
+            instance: /auth/login
+            timestamp: "2026-08-22T20:00:00Z"
+            correlationId: 7c973582-36bc-45a7-980f-285901008ad8
             erro: O corpo da requisicao excede o limite permitido
     LimiteAtingido:
       description: Limite de tentativas, cota de IA ou concorrencia atingido.
       headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
         Retry-After:
           description: Segundos que o cliente deve aguardar antes de tentar novamente.
           schema:
@@ -638,10 +1147,17 @@ components:
             format: int64
             minimum: 1
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErroResponse"
+            $ref: "#/components/schemas/Problem"
           example:
+            type: urn:sistema-api-pibic:problem:limite-uso-ia
+            title: Limite de uso da IA
+            status: 429
+            detail: O limite de geracoes de IA por minuto foi atingido
+            instance: /casos/42/ia/gerar
+            timestamp: "2026-08-22T20:00:00Z"
+            correlationId: 7c973582-36bc-45a7-980f-285901008ad8
             erro: O limite de geracoes de IA por minuto foi atingido
     CapacidadeIaIndisponivel:
       description: |
@@ -649,6 +1165,8 @@ components:
         capacidade disponivel no momento. Quando presente, Retry-After informa
         os segundos ate a proxima tentativa recomendada.
       headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
         Retry-After:
           description: Segundos que o cliente deve aguardar antes de tentar novamente.
           schema:
@@ -656,32 +1174,157 @@ components:
             format: int64
             minimum: 1
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErroResponse"
+            $ref: "#/components/schemas/Problem"
           examples:
             configuracaoAusente:
               value:
+                type: urn:sistema-api-pibic:problem:servico-indisponivel
+                title: Servico indisponivel
+                status: 503
+                detail: Configure a integracao de IA antes de usar este recurso
+                instance: /casos/42/ia/gerar
+                timestamp: "2026-08-22T20:00:00Z"
+                correlationId: 7c973582-36bc-45a7-980f-285901008ad8
                 erro: Configure a variavel IA_CHAVE_API antes de usar a IA
             capacidadeEsgotada:
               value:
+                type: urn:sistema-api-pibic:problem:capacidade-ia-esgotada
+                title: Capacidade de IA esgotada
+                status: 503
+                detail: A capacidade gratuita dos provedores de IA foi esgotada temporariamente
+                instance: /casos/42/ia/gerar
+                timestamp: "2026-08-22T20:00:00Z"
+                correlationId: 7c973582-36bc-45a7-980f-285901008ad8
                 erro: A capacidade gratuita dos provedores de IA foi esgotada temporariamente
     TempoEsgotadoIa:
       description: O provedor de IA excedeu o tempo limite configurado.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: "#/components/schemas/ErroResponse"
+            $ref: "#/components/schemas/Problem"
           example:
+            type: urn:sistema-api-pibic:problem:tempo-esgotado-ia
+            title: Tempo esgotado no provedor de IA
+            status: 504
+            detail: O provedor de IA excedeu o tempo limite da requisicao
+            instance: /casos/42/ia/gerar
+            timestamp: "2026-08-22T20:00:00Z"
+            correlationId: 7c973582-36bc-45a7-980f-285901008ad8
             erro: O provedor de IA excedeu o tempo limite da requisicao
+    FalhaProvedorIa:
+      description: O provedor de IA rejeitou a solicitacao ou devolveu uma resposta invalida.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    DadosInvalidos:
+      description: A requisicao possui campos, JSON, parametros ou tipos invalidos.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NaoAutenticado:
+      description: Token ausente, invalido, expirado ou usuario desativado.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    AcessoNegado:
+      description: O usuario autenticado nao possui permissao para a operacao.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NaoEncontrado:
+      description: O recurso solicitado nao foi encontrado.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflito:
+      description: O estado atual ou a concorrencia dos dados impede a operacao.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  headers:
+    CorrelationId:
+      description: Identificador da requisicao para rastreamento ponta a ponta.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
   schemas:
-    ErroResponse:
+    Problem:
       type: object
       required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - timestamp
+        - correlationId
         - erro
       properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        timestamp:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
         erro:
           type: string
+          deprecated: true
+          description: Alias legado de detail; mantido temporariamente para compatibilidade.
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Erros por campo quando a validacao falha.
+        campos:
+          type: object
+          deprecated: true
+          additionalProperties:
+            type: string
+          description: Alias legado de errors; mantido temporariamente para compatibilidade.
     LoginRequest:
       type: object
       required:
@@ -809,6 +1452,123 @@ components:
           type: string
         periodo:
           type: string
+    ProfessorRequest:
+      type: object
+      required:
+        - nome
+        - email
+        - materia
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        materia:
+          type: string
+          maxLength: 120
+    ProfessorCadastroRequest:
+      allOf:
+        - $ref: "#/components/schemas/ProfessorRequest"
+        - type: object
+          required:
+            - username
+            - senha
+          properties:
+            username:
+              type: string
+              minLength: 3
+              maxLength: 100
+            senha:
+              type: string
+              format: password
+              minLength: 12
+              maxLength: 72
+    ProfessorResponse:
+      allOf:
+        - $ref: "#/components/schemas/ProfessorRequest"
+        - type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+    Paciente:
+      type: object
+      required:
+        - idCaso
+        - nome
+        - profissao
+        - sexo
+        - idade
+        - estadoCivil
+        - altura
+        - peso
+      properties:
+        idPaciente:
+          type: integer
+          format: int64
+          readOnly: true
+        idCaso:
+          type: integer
+          format: int64
+          minimum: 1
+        nome:
+          type: string
+          maxLength: 150
+        profissao:
+          type: string
+          maxLength: 120
+        sexo:
+          type: string
+          enum: [MASCULINO, FEMININO, OUTRO, NAO_INFORMADO]
+        idade:
+          type: integer
+          minimum: 0
+          maximum: 130
+        estadoCivil:
+          type: string
+          enum: [SOLTEIRO, CASADO, DIVORCIADO, VIUVO, SEPARADO, UNIAO_ESTAVEL, NAO_INFORMADO]
+        altura:
+          type: string
+          maxLength: 20
+        peso:
+          type: string
+          maxLength: 20
+    ConteudoClinico:
+      type: object
+      required:
+        - idCaso
+        - sintomas
+        - contexto
+        - examClinico
+        - antecClinico
+        - diagEsperado
+      properties:
+        idConteudo:
+          type: integer
+          format: int64
+          readOnly: true
+        idCaso:
+          type: integer
+          format: int64
+          minimum: 1
+        sintomas:
+          type: string
+          maxLength: 10000
+        contexto:
+          type: string
+          maxLength: 10000
+        examClinico:
+          type: string
+          maxLength: 10000
+        antecClinico:
+          type: string
+          maxLength: 10000
+        diagEsperado:
+          type: string
+          maxLength: 10000
     CasoClinicoRequest:
       type: object
       required:
@@ -873,6 +1633,8 @@ components:
     CasoClinicoIARequest:
       type: object
       description: Campos preenchidos parcialmente pelo professor; os campos ausentes serao completados pela IA.
+      required:
+        - dadosSinteticosOuDesidentificados
       properties:
         sintomas:
           type: string
@@ -898,10 +1660,15 @@ components:
         informacoesAdicionaisPaciente:
           type: string
           maxLength: 10000
+        dadosSinteticosOuDesidentificados:
+          type: boolean
+          enum: [true]
+          description: Confirmacao obrigatoria de que nenhum dado pessoal identificavel sera enviado ao provedor.
     CasoClinicoIAAjusteRequest:
       type: object
       required:
         - tipoAjuste
+        - dadosSinteticosOuDesidentificados
       properties:
         tipoAjuste:
           type: string
@@ -909,6 +1676,10 @@ components:
         instrucao:
           type: string
           maxLength: 2000
+        dadosSinteticosOuDesidentificados:
+          type: boolean
+          enum: [true]
+          description: Confirmacao obrigatoria de que o contexto enviado esta sintetico ou desidentificado.
     CasoClinicoIAResponse:
       type: object
       properties:
@@ -933,9 +1704,63 @@ components:
         diagEsperado:
           type: string
           maxLength: 10000
+    AuditoriaGeracaoIa:
+      type: object
+      required:
+        - id
+        - idCaso
+        - idUsuario
+        - operacao
+        - provedor
+        - modelo
+        - versaoPrompt
+        - hashContexto
+        - hashSaida
+        - referenciaResultado
+        - quantidadeItens
+        - dadosDesidentificadosConfirmados
+        - dataGeracao
+      properties:
+        id:
+          type: integer
+          format: int64
+        idCaso:
+          type: integer
+          format: int64
+        idUsuario:
+          type: integer
+          format: int64
+        operacao:
+          type: string
+          enum: [GERAR_CASO, AJUSTAR_CASO, GERAR_PERGUNTAS]
+        provedor:
+          type: string
+        modelo:
+          type: string
+        versaoPrompt:
+          type: string
+        hashContexto:
+          type: string
+          description: Hash SHA-256 do contexto desidentificado enviado.
+        hashSaida:
+          type: string
+          description: Hash SHA-256 da saida recebida, sem duplicar seu conteudo.
+        referenciaResultado:
+          type: string
+        quantidadeItens:
+          type: integer
+          format: int32
+          minimum: 1
+        dadosDesidentificadosConfirmados:
+          type: boolean
+        dataGeracao:
+          type: string
+          format: date-time
     GerarPerguntasIaRequestDTO:
       type: object
-      description: Configuracao da geracao de perguntas. Um objeto vazio usa todos os valores padrao.
+      description: Configuracao da geracao de perguntas; a confirmacao de desidentificacao e obrigatoria.
+      required:
+        - dadosSinteticosOuDesidentificados
       properties:
         quantidade:
           type: integer
@@ -958,6 +1783,10 @@ components:
           type: string
           maxLength: 2000
           example: Priorize raciocinio diagnostico e conduta inicial.
+        dadosSinteticosOuDesidentificados:
+          type: boolean
+          enum: [true]
+          description: Confirmacao obrigatoria de que o contexto enviado esta sintetico ou desidentificado.
     AlternativaPergunta:
       type: object
       properties:
@@ -1131,17 +1960,56 @@ components:
       type: object
       required:
         - correta
+        - justificativa
       properties:
         correta:
           type: boolean
           description: Decisao do professor sobre a correcao da resposta.
-    PaginaRespostaAluno:
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Fundamentacao obrigatoria e auditavel da decisao humana.
+    RevisaoResposta:
       type: object
+      required:
+        - id
+        - idResposta
+        - idRevisor
+        - correta
+        - justificativa
+        - dataRevisao
+        - versaoRevisao
       properties:
-        content:
-          type: array
-          items:
-            $ref: "#/components/schemas/RespostaAluno"
+        id:
+          type: integer
+          format: int64
+        idResposta:
+          type: integer
+          format: int64
+        idRevisor:
+          type: integer
+          format: int64
+        correta:
+          type: boolean
+        justificativa:
+          type: string
+          maxLength: 2000
+        dataRevisao:
+          type: string
+          format: date-time
+        versaoRevisao:
+          type: integer
+          format: int64
+          minimum: 1
+    PaginaBase:
+      type: object
+      required:
+        - totalElements
+        - totalPages
+        - number
+        - size
+      properties:
         totalElements:
           type: integer
           format: int64
@@ -1154,6 +2022,87 @@ components:
         size:
           type: integer
           format: int32
+    PaginaProfessor:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProfessorResponse"
+    PaginaUsuario:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/UsuarioResponse"
+    PaginaAluno:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/AlunoResponse"
+    PaginaCasoClinico:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/CasoClinicoResponse"
+    PaginaPaciente:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/Paciente"
+    PaginaConteudoClinico:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/ConteudoClinico"
+    PaginaPergunta:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/PerguntaResponse"
+    PaginaAuditoriaGeracaoIa:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditoriaGeracaoIa"
+    PaginaRespostaAluno:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/RespostaAluno"
     ResultadoCaso:
       type: object
       properties:

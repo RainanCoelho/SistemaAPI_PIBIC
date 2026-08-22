@@ -10,9 +10,11 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.SistemaApiCrud.SistemaCrud.exception.ApiProblemSupport;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
@@ -29,12 +31,15 @@ public class FiltroLimiteCorpoRequisicao extends OncePerRequestFilter {
     private static final Set<String> METODOS_COM_CORPO = Set.of("POST", "PUT", "PATCH");
 
     private final int limiteCorpoBytes;
+    private final ApiProblemSupport problemas;
 
     public FiltroLimiteCorpoRequisicao(
+            ApiProblemSupport problemas,
             @Value("${app.http.limite-corpo-bytes:1048576}") int limiteCorpoBytes) {
         if (limiteCorpoBytes < 1) {
             throw new IllegalArgumentException("O limite do corpo da requisicao deve ser maior que zero");
         }
+        this.problemas = problemas;
         this.limiteCorpoBytes = limiteCorpoBytes;
     }
 
@@ -50,24 +55,29 @@ public class FiltroLimiteCorpoRequisicao extends OncePerRequestFilter {
 
         long tamanhoDeclarado = requisicao.getContentLengthLong();
         if (tamanhoDeclarado > limiteCorpoBytes) {
-            rejeitar(resposta);
+            rejeitar(requisicao, resposta);
             return;
         }
 
         byte[] corpo = requisicao.getInputStream().readNBytes(limiteCorpoBytes + 1);
         if (corpo.length > limiteCorpoBytes) {
-            rejeitar(resposta);
+            rejeitar(requisicao, resposta);
             return;
         }
 
         cadeiaFiltros.doFilter(new RequisicaoComCorpo(requisicao, corpo), resposta);
     }
 
-    private void rejeitar(HttpServletResponse resposta) throws IOException {
-        resposta.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
-        resposta.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        resposta.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        resposta.getWriter().write("{\"erro\":\"O corpo da requisicao excede o limite permitido\"}");
+    private void rejeitar(
+            HttpServletRequest requisicao,
+            HttpServletResponse resposta) throws IOException {
+        problemas.escrever(
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                "corpo-requisicao-excedido",
+                "Corpo da requisicao excedido",
+                "O corpo da requisicao excede o limite permitido",
+                requisicao,
+                resposta);
     }
 
     private static final class RequisicaoComCorpo extends HttpServletRequestWrapper {

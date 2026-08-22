@@ -9,25 +9,28 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import com.SistemaApiCrud.SistemaCrud.exception.ApiProblemSupport;
+
 import jakarta.servlet.http.HttpServletRequestWrapper;
 
 class FiltroLimiteCorpoRequisicaoTests {
 
     @Test
     void deveRejeitarTamanhoDeclaradoAcimaDoLimite() throws Exception {
-        FiltroLimiteCorpoRequisicao filtro = new FiltroLimiteCorpoRequisicao(10);
+        FiltroLimiteCorpoRequisicao filtro = filtro(10);
         MockHttpServletRequest requisicao = requisicaoComCorpo("conteudo maior que dez");
         MockHttpServletResponse resposta = new MockHttpServletResponse();
 
         filtro.doFilter(requisicao, resposta, new MockFilterChain());
 
         assertThat(resposta.getStatus()).isEqualTo(413);
+        assertThat(resposta.getContentType()).startsWith("application/problem+json");
         assertThat(resposta.getContentAsString()).contains("excede o limite");
     }
 
     @Test
     void deveRejeitarCorpoSemTamanhoDeclaradoAcimaDoLimite() throws Exception {
-        FiltroLimiteCorpoRequisicao filtro = new FiltroLimiteCorpoRequisicao(10);
+        FiltroLimiteCorpoRequisicao filtro = filtro(10);
         MockHttpServletRequest original = requisicaoComCorpo("conteudo maior que dez");
         HttpServletRequestWrapper requisicaoSemTamanho =
                 new HttpServletRequestWrapper(original) {
@@ -50,7 +53,7 @@ class FiltroLimiteCorpoRequisicaoTests {
 
     @Test
     void deveRepassarCorpoPermitidoSemAlterarConteudo() throws Exception {
-        FiltroLimiteCorpoRequisicao filtro = new FiltroLimiteCorpoRequisicao(50);
+        FiltroLimiteCorpoRequisicao filtro = filtro(50);
         MockHttpServletRequest requisicao = requisicaoComCorpo("{\"campo\":\"valor\"}");
         MockHttpServletResponse resposta = new MockHttpServletResponse();
         MockFilterChain cadeiaFiltros = new MockFilterChain();
@@ -71,5 +74,9 @@ class FiltroLimiteCorpoRequisicaoTests {
         requisicao.setContentType("application/json");
         requisicao.setContent(corpo.getBytes(StandardCharsets.UTF_8));
         return requisicao;
+    }
+
+    private FiltroLimiteCorpoRequisicao filtro(int limite) {
+        return new FiltroLimiteCorpoRequisicao(new ApiProblemSupport(), limite);
     }
 }

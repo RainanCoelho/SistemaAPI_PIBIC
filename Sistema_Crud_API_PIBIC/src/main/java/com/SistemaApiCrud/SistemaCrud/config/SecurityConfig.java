@@ -22,6 +22,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.SistemaApiCrud.SistemaCrud.exception.ApiProblemSupport;
+
 @Configuration
 public class SecurityConfig {
 
@@ -30,6 +32,7 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             CorsConfigurationSource corsConfigurationSource,
+            ApiProblemSupport problemas,
             @Value("${app.docs.public:false}") boolean publicDocs,
             @Value("${app.security.require-https:false}") boolean requireHttps) throws Exception {
         if (requireHttps) {
@@ -42,10 +45,20 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint((request, response, exception) ->
-                                response.sendError(HttpStatus.UNAUTHORIZED.value()))
-                        .accessDeniedHandler((request, response, exception) ->
-                                response.sendError(HttpStatus.FORBIDDEN.value())))
+                        .authenticationEntryPoint((request, response, exception) -> problemas.escrever(
+                                HttpStatus.UNAUTHORIZED,
+                                "nao-autenticado",
+                                "Autenticacao necessaria",
+                                "Informe um token Bearer valido para acessar este recurso",
+                                request,
+                                response))
+                        .accessDeniedHandler((request, response, exception) -> problemas.escrever(
+                                HttpStatus.FORBIDDEN,
+                                "acesso-negado",
+                                "Acesso negado",
+                                "O usuario nao possui permissao para esta operacao",
+                                request,
+                                response)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
@@ -99,8 +112,12 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(splitProperty(allowedOrigins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-Correlation-Id"));
+        configuration.setExposedHeaders(List.of("Authorization", "X-Correlation-Id"));
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
