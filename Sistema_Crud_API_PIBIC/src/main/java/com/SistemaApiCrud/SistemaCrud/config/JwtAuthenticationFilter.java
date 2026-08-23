@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.SistemaApiCrud.SistemaCrud.service.JwtService;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,9 +18,9 @@ import jakarta.servlet.http.HttpServletResponse;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final usuario_repository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService, usuario_repository usuarioRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository) {
         this.jwtService = jwtService;
         this.usuarioRepository = usuarioRepository;
     }

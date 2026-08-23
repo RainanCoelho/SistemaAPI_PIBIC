@@ -6,24 +6,24 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntasGeradasIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.OperacaoGeracaoIa;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
 
 @Service
 public class PerguntaIaTransactionService {
 
     private static final String VERSAO_PROMPT = "perguntas-v2";
 
-    private final pergunta_service perguntaService;
-    private final caso_clinico_repository casoRepository;
+    private final PerguntaService perguntaService;
+    private final CasoClinicoRepository casoRepository;
     private final GeracaoIaAuditService auditService;
 
     public PerguntaIaTransactionService(
-            pergunta_service perguntaService,
-            caso_clinico_repository casoRepository,
+            PerguntaService perguntaService,
+            CasoClinicoRepository casoRepository,
             GeracaoIaAuditService auditService) {
         this.perguntaService = perguntaService;
         this.casoRepository = casoRepository;
@@ -31,20 +31,20 @@ public class PerguntaIaTransactionService {
     }
 
     @Transactional
-    public List<pergunta_response_DTO> salvarComAuditoria(
+    public List<PerguntaResponseDTO> salvarComAuditoria(
             Long idCaso,
-            List<pergunta_request_DTO> perguntas,
+            List<PerguntaRequestDTO> perguntas,
             String fingerprint,
             long quantidadePerguntasExistentes,
             String contexto,
             PerguntasGeradasIaDTO saidaIa) {
-        List<pergunta_response_DTO> respostas = perguntaService.salvarLoteEmCaso(
+        List<PerguntaResponseDTO> respostas = perguntaService.salvarLoteEmCaso(
                 idCaso,
                 perguntas,
                 fingerprint,
                 quantidadePerguntasExistentes);
         String referencias = respostas.stream()
-                .map(pergunta_response_DTO::getId)
+                .map(PerguntaResponseDTO::getId)
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
         auditService.registrar(

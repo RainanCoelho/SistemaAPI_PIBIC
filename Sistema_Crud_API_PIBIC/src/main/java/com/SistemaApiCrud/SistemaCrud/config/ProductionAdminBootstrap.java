@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 
 @Component
 @Profile("prod")
@@ -18,13 +18,13 @@ import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
         havingValue = "true")
 public class ProductionAdminBootstrap implements CommandLineRunner {
 
-    private final usuario_repository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final String username;
     private final String password;
 
     public ProductionAdminBootstrap(
-            usuario_repository usuarioRepository,
+            UsuarioRepository usuarioRepository,
             PasswordEncoder passwordEncoder,
             @Value("${app.security.bootstrap-admin.username}") String username,
             @Value("${app.security.bootstrap-admin.password}") String password) {

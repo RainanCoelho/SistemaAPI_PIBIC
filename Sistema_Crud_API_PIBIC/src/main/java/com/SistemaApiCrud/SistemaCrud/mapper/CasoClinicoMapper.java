@@ -2,18 +2,18 @@ package com.SistemaApiCrud.SistemaCrud.mapper;
 
 import org.springframework.stereotype.Component;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_response_DTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 
 @Component
 public class CasoClinicoMapper {
 
-    public caso_clinico_response_DTO toResponse(casos_clinicos caso) {
+    public CasoClinicoResponseDTO toResponse(CasoClinico caso) {
         Long idProfessor = caso.getProfessor() != null ? caso.getProfessor().getId() : null;
 
-        return new caso_clinico_response_DTO(
+        return new CasoClinicoResponseDTO(
                 caso.getIdCaso(),
                 idProfessor,
                 caso.getTitulo(),
@@ -29,13 +29,13 @@ public class CasoClinicoMapper {
                 caso.getTempoLimiteMinutos());
     }
 
-    public casos_clinicos toEntity(caso_clinico_request_DTO dto, Professor professor) {
-        casos_clinicos caso = new casos_clinicos();
+    public CasoClinico toEntity(CasoClinicoRequestDTO dto, Professor professor) {
+        CasoClinico caso = new CasoClinico();
         updateEntity(dto, caso, professor);
         return caso;
     }
 
-    public void updateEntity(caso_clinico_request_DTO dto, casos_clinicos caso, Professor professor) {
+    public void updateEntity(CasoClinicoRequestDTO dto, CasoClinico caso, Professor professor) {
         if (professor != null) {
             caso.setProfessor(professor);
         }
@@ -50,7 +50,7 @@ public class CasoClinicoMapper {
         if (dto.getTempoLimiteMinutos() != null) {
             caso.setTempoLimiteMinutos(dto.getTempoLimiteMinutos());
         } else if (caso.getTempoLimiteMinutos() == null) {
-            caso.setTempoLimiteMinutos(casos_clinicos.TEMPO_LIMITE_PADRAO_MINUTOS);
+            caso.setTempoLimiteMinutos(CasoClinico.TEMPO_LIMITE_PADRAO_MINUTOS);
         }
     }
 }

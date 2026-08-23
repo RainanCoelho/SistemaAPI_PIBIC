@@ -10,17 +10,17 @@ import com.SistemaApiCrud.SistemaCrud.entity.Aluno;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
-import com.SistemaApiCrud.SistemaCrud.repository.aluno_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.AlunoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ProfessorRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 
 @Component
 @Profile({"dev", "test"})
 public class DataInitializer implements CommandLineRunner {
 
-    private final usuario_repository usuarioRepository;
-    private final aluno_repository alunoRepository;
-    private final professor_repository professorRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final AlunoRepository alunoRepository;
+    private final ProfessorRepository professorRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.security.admin.username}")
@@ -42,9 +42,9 @@ public class DataInitializer implements CommandLineRunner {
     private String alunoPassword;
 
     public DataInitializer(
-            usuario_repository usuarioRepository,
-            aluno_repository alunoRepository,
-            professor_repository professorRepository,
+            UsuarioRepository usuarioRepository,
+            AlunoRepository alunoRepository,
+            ProfessorRepository professorRepository,
             PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.alunoRepository = alunoRepository;

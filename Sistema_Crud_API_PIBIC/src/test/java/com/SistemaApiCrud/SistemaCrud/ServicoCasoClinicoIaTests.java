@@ -15,23 +15,23 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoResponseDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PacienteGeradoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoAjusteRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PacienteGeradoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoAiClient;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoIaTransactionService;
 import com.SistemaApiCrud.SistemaCrud.service.GeracaoIaAuditService;
@@ -41,16 +41,16 @@ import com.SistemaApiCrud.SistemaCrud.service.ServicoCasoClinicoIa;
 class ServicoCasoClinicoIaTests {
 
     private final CasoClinicoAiClient aiClient = mock(CasoClinicoAiClient.class);
-    private final caso_clinico_repository casoRepository = mock(caso_clinico_repository.class);
-    private final conteudo_clinico_repository conteudoRepository = mock(conteudo_clinico_repository.class);
-    private final paciente_repository pacienteRepository = mock(paciente_repository.class);
+    private final CasoClinicoRepository casoRepository = mock(CasoClinicoRepository.class);
+    private final ConteudoClinicoRepository conteudoRepository = mock(ConteudoClinicoRepository.class);
+    private final PacienteRepository pacienteRepository = mock(PacienteRepository.class);
     private final CasoClinicoIaTransactionService transactionService =
             mock(CasoClinicoIaTransactionService.class);
     private final GeracaoIaAuditService auditService = mock(GeracaoIaAuditService.class);
 
     @Test
     void deveExigirConfirmacaoDeDadosSinteticosOuDesidentificados() {
-        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO();
+        CasoClinicoIaRequestDTO requisicao = new CasoClinicoIaRequestDTO();
         requisicao.setDadosSinteticosOuDesidentificados(false);
 
         assertThatThrownBy(() -> servicoComChave().gerarConteudo(1L, requisicao))
@@ -63,24 +63,24 @@ class ServicoCasoClinicoIaTests {
         ServicoCasoClinicoIa servico = servicoComChave();
         when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIa());
 
-        casos_clinicos caso = criarCaso();
+        CasoClinico caso = criarCaso();
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
                 .thenReturn(List.of());
-        when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> {
-            conteudo_clinico conteudo = invocation.getArgument(0);
+        when(conteudoRepository.save(any(ConteudoClinico.class))).thenAnswer(invocation -> {
+            ConteudoClinico conteudo = invocation.getArgument(0);
             conteudo.setIdConteudo(10L);
             return conteudo;
         });
 
-        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(
+        CasoClinicoIaRequestDTO requisicao = new CasoClinicoIaRequestDTO(
                 "Febre relatada pelo professor",
                 null,
                 null,
                 null,
                 null);
 
-        CasoClinicoResponseDTO resposta = servico.gerarConteudo(1L, requisicao);
+        CasoClinicoIaResponseDTO resposta = servico.gerarConteudo(1L, requisicao);
 
         assertThat(resposta.getIdConteudo()).isEqualTo(10L);
         assertThat(resposta.getIdCaso()).isEqualTo(1L);
@@ -105,7 +105,7 @@ class ServicoCasoClinicoIaTests {
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(criarCaso()));
 
-        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(
+        CasoClinicoIaRequestDTO requisicao = new CasoClinicoIaRequestDTO(
                 "Sintoma informado",
                 null,
                 "Exame informado",
@@ -122,8 +122,8 @@ class ServicoCasoClinicoIaTests {
         ServicoCasoClinicoIa servico = servicoComChave();
         when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIa());
 
-        casos_clinicos caso = criarCaso();
-        conteudo_clinico conteudoAtual = new conteudo_clinico();
+        CasoClinico caso = criarCaso();
+        ConteudoClinico conteudoAtual = new ConteudoClinico();
         conteudoAtual.setIdConteudo(22L);
         conteudoAtual.setCasoClinico(caso);
         conteudoAtual.setSintomas("Dispneia e chiado");
@@ -137,9 +137,9 @@ class ServicoCasoClinicoIaTests {
                 .thenReturn(List.of());
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudoAtual));
-        when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(conteudoRepository.save(any(ConteudoClinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CasoClinicoResponseDTO resposta = servico.ajustarConteudo(
+        CasoClinicoIaResponseDTO resposta = servico.ajustarConteudo(
                 1L,
                 new CasoClinicoAjusteRequestDTO("SIMPLIFICAR", null, true));
 
@@ -153,10 +153,10 @@ class ServicoCasoClinicoIaTests {
         ServicoCasoClinicoIa servico = servicoComChave();
         when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIaComComplementos());
 
-        casos_clinicos caso = criarCaso();
+        CasoClinico caso = criarCaso();
         caso.setObjetivoAprendizagem(null);
 
-        paciente paciente = new paciente();
+        Paciente paciente = new Paciente();
         paciente.setIdPaciente(5L);
         paciente.setCasoClinico(caso);
         paciente.setNome("Maria Sigilosa");
@@ -168,24 +168,24 @@ class ServicoCasoClinicoIaTests {
         paciente.setAltura("NAO_INFORMADO");
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
-        when(casoRepository.save(any(casos_clinicos.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(casoRepository.save(any(CasoClinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
                 .thenReturn(List.of(paciente));
-        when(pacienteRepository.save(any(paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> {
-            conteudo_clinico conteudo = invocation.getArgument(0);
+        when(pacienteRepository.save(any(Paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(conteudoRepository.save(any(ConteudoClinico.class))).thenAnswer(invocation -> {
+            ConteudoClinico conteudo = invocation.getArgument(0);
             conteudo.setIdConteudo(33L);
             return conteudo;
         });
 
-        CasoClinicoRequestDTO requisicao = new CasoClinicoRequestDTO(null, null, null, null, null);
+        CasoClinicoIaRequestDTO requisicao = new CasoClinicoIaRequestDTO(null, null, null, null, null);
         requisicao.setDadosSinteticosOuDesidentificados(true);
         requisicao.setPermitirComplementoIa(true);
         requisicao.setInformacoesAdicionaisPaciente(
                 "CPF: 123.456.789-00; outro CPF 98765432100; "
                         + "CNS 123456789012345; e-mail: maria.sigilo@example.com");
 
-        CasoClinicoResponseDTO resposta = servico.gerarConteudo(1L, requisicao);
+        CasoClinicoIaResponseDTO resposta = servico.gerarConteudo(1L, requisicao);
 
         assertThat(resposta.getIdConteudo()).isEqualTo(33L);
         assertThat(caso.getObjetivoAprendizagem()).isEqualTo("Identificar sinais de exacerbação asmática e definir conduta inicial.");
@@ -216,8 +216,8 @@ class ServicoCasoClinicoIaTests {
         ServicoCasoClinicoIa servico = servicoComChave();
         when(aiClient.gerarConteudo(any(), any())).thenReturn(respostaIaAjustandoPaciente());
 
-        casos_clinicos caso = criarCaso();
-        conteudo_clinico conteudoAtual = new conteudo_clinico();
+        CasoClinico caso = criarCaso();
+        ConteudoClinico conteudoAtual = new ConteudoClinico();
         conteudoAtual.setIdConteudo(44L);
         conteudoAtual.setCasoClinico(caso);
         conteudoAtual.setSintomas("Dor no peito e falta de ar");
@@ -226,7 +226,7 @@ class ServicoCasoClinicoIaTests {
         conteudoAtual.setAntecClinico("Hipertensao");
         conteudoAtual.setDiagEsperado("Angina instavel");
 
-        paciente paciente = new paciente();
+        Paciente paciente = new Paciente();
         paciente.setIdPaciente(7L);
         paciente.setCasoClinico(caso);
         paciente.setNome("João Silva");
@@ -238,15 +238,15 @@ class ServicoCasoClinicoIaTests {
         paciente.setAltura("1.75m");
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
-        when(casoRepository.save(any(casos_clinicos.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(casoRepository.save(any(CasoClinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L))
                 .thenReturn(List.of(paciente));
-        when(pacienteRepository.save(any(paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pacienteRepository.save(any(Paciente.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudoAtual));
-        when(conteudoRepository.save(any(conteudo_clinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(conteudoRepository.save(any(ConteudoClinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CasoClinicoResponseDTO resposta = servico.ajustarConteudo(
+        CasoClinicoIaResponseDTO resposta = servico.ajustarConteudo(
                 1L,
                 new CasoClinicoAjusteRequestDTO(
                         "PERSONALIZADO",
@@ -278,18 +278,18 @@ class ServicoCasoClinicoIaTests {
         when(transactionService.executarGeracao(any(), any(), any(), any()))
                 .thenAnswer(invocation -> {
                     Long idCaso = invocation.getArgument(0);
-                    Function<casos_clinicos, CasoClinicoResponseDTO> operacao =
+                    Function<CasoClinico, CasoClinicoIaResponseDTO> operacao =
                             invocation.getArgument(3);
-                    casos_clinicos caso = casoRepository.findById(idCaso).orElseThrow();
+                    CasoClinico caso = casoRepository.findById(idCaso).orElseThrow();
                     return operacao.apply(caso);
                 });
         when(transactionService.executarAjuste(any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> {
                     Long idCaso = invocation.getArgument(0);
-                    BiFunction<casos_clinicos, conteudo_clinico, CasoClinicoResponseDTO> operacao =
+                    BiFunction<CasoClinico, ConteudoClinico, CasoClinicoIaResponseDTO> operacao =
                             invocation.getArgument(4);
-                    casos_clinicos caso = casoRepository.findById(idCaso).orElseThrow();
-                    conteudo_clinico conteudo = conteudoRepository
+                    CasoClinico caso = casoRepository.findById(idCaso).orElseThrow();
+                    ConteudoClinico conteudo = conteudoRepository
                             .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
                             .orElseThrow();
                     return operacao.apply(caso, conteudo);
@@ -357,8 +357,8 @@ class ServicoCasoClinicoIaTests {
         return paciente;
     }
 
-    private casos_clinicos criarCaso() {
-        casos_clinicos caso = new casos_clinicos();
+    private CasoClinico criarCaso() {
+        CasoClinico caso = new CasoClinico();
         caso.setIdCaso(1L);
         caso.setStatus(StatusCasoClinico.RASCUNHO);
         caso.setProfessor(new Professor(1L, "Dra. Ana", "ana@email.com", "Clinica"));

@@ -4,19 +4,19 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.alternativa_pergunta_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
+import com.SistemaApiCrud.SistemaCrud.dto.AlternativaPerguntaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.Pergunta;
 
 @Component
 public class PerguntaMapper {
 
-    public pergunta_response_DTO toResponse(pergunta pergunta, List<alternativa_pergunta_DTO> alternativas) {
+    public PerguntaResponseDTO toResponse(Pergunta pergunta, List<AlternativaPerguntaDTO> alternativas) {
         Long idCaso = pergunta.getCasoClinico() != null ? pergunta.getCasoClinico().getIdCaso() : null;
 
-        return new pergunta_response_DTO(
+        return new PerguntaResponseDTO(
                 pergunta.getId(),
                 idCaso,
                 pergunta.getTexto(),
@@ -26,13 +26,13 @@ public class PerguntaMapper {
                 pergunta.getGabarito());
     }
 
-    public pergunta toEntity(pergunta_request_DTO dto, casos_clinicos caso) {
-        pergunta pergunta = new pergunta();
+    public Pergunta toEntity(PerguntaRequestDTO dto, CasoClinico caso) {
+        Pergunta pergunta = new Pergunta();
         updateEntity(dto, pergunta, caso);
         return pergunta;
     }
 
-    public void updateEntity(pergunta_request_DTO dto, pergunta pergunta, casos_clinicos caso) {
+    public void updateEntity(PerguntaRequestDTO dto, Pergunta pergunta, CasoClinico caso) {
         if (caso != null) {
             pergunta.setCasoClinico(caso);
         }

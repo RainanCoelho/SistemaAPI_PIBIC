@@ -17,14 +17,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.AlternativaGeradaIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.GerarPerguntasIaRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntaGeradaIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntasGeradasIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.dto.AlternativaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.GerarPerguntasIaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
@@ -33,14 +33,14 @@ import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
 import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaAiClient;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaIaService;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaIaTransactionService;
 import com.SistemaApiCrud.SistemaCrud.service.ProtecaoDadosClinicosIa;
-import com.SistemaApiCrud.SistemaCrud.service.pergunta_service;
+import com.SistemaApiCrud.SistemaCrud.service.PerguntaService;
 
 class PerguntaIaServiceTests {
 
@@ -55,11 +55,11 @@ class PerguntaIaServiceTests {
     }
 
     private final PerguntaAiClient aiClient = mock(PerguntaAiClient.class);
-    private final caso_clinico_repository casoRepository = mock(caso_clinico_repository.class);
-    private final conteudo_clinico_repository conteudoRepository =
-            mock(conteudo_clinico_repository.class);
-    private final paciente_repository pacienteRepository = mock(paciente_repository.class);
-    private final pergunta_service perguntaService = mock(pergunta_service.class);
+    private final CasoClinicoRepository casoRepository = mock(CasoClinicoRepository.class);
+    private final ConteudoClinicoRepository conteudoRepository =
+            mock(ConteudoClinicoRepository.class);
+    private final PacienteRepository pacienteRepository = mock(PacienteRepository.class);
+    private final PerguntaService perguntaService = mock(PerguntaService.class);
     private final PerguntaIaTransactionService transactionService =
             mock(PerguntaIaTransactionService.class);
 
@@ -68,12 +68,12 @@ class PerguntaIaServiceTests {
     void deveGerarValidarMapearESalvarPerguntasEmLote() {
         PerguntaIaService service = serviceComChave();
         GerarPerguntasIaRequestDTO request = request(2);
-        casos_clinicos caso = caso(StatusCasoClinico.RASCUNHO);
-        conteudo_clinico conteudo = conteudo(caso);
+        CasoClinico caso = caso(StatusCasoClinico.RASCUNHO);
+        ConteudoClinico conteudo = conteudo(caso);
         conteudo.setContexto(
                 "Nome: Paciente Sigiloso; CPF: 123.456.789-00; atendimento de adulto");
         PerguntasGeradasIaDTO respostaIa = respostaValida(2);
-        List<pergunta_response_DTO> respostaEsperada = List.of(new pergunta_response_DTO());
+        List<PerguntaResponseDTO> respostaEsperada = List.of(new PerguntaResponseDTO());
 
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
@@ -85,7 +85,7 @@ class PerguntaIaServiceTests {
                 anyLong(), any(), anyString(), anyLong(), anyString(), any()))
                 .thenReturn(respostaEsperada);
 
-        List<pergunta_response_DTO> resposta = service.gerarPerguntas(1L, request);
+        List<PerguntaResponseDTO> resposta = service.gerarPerguntas(1L, request);
 
         assertThat(resposta).isSameAs(respostaEsperada);
         ArgumentCaptor<String> instrucoesSistema = ArgumentCaptor.forClass(String.class);
@@ -109,7 +109,7 @@ class PerguntaIaServiceTests {
                 org.mockito.ArgumentMatchers.eq(0L),
                 anyString(),
                 any());
-        List<pergunta_request_DTO> perguntasMapeadas = perguntas.getValue();
+        List<PerguntaRequestDTO> perguntasMapeadas = perguntas.getValue();
         assertThat(perguntasMapeadas).hasSize(2);
         assertThat(perguntasMapeadas.get(0).getTipo()).isEqualTo(TipoPergunta.MULTIPLA_ESCOLHA);
         assertThat(perguntasMapeadas.get(0).getAlternativas())
@@ -271,7 +271,7 @@ class PerguntaIaServiceTests {
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
         when(transactionService.salvarComAuditoria(
                 anyLong(), any(), anyString(), anyLong(), anyString(), any()))
-                .thenReturn(List.of(new pergunta_response_DTO()));
+                .thenReturn(List.of(new PerguntaResponseDTO()));
 
         service.gerarPerguntas(1L, request);
 
@@ -283,7 +283,7 @@ class PerguntaIaServiceTests {
                 org.mockito.ArgumentMatchers.eq(0L),
                 anyString(),
                 any());
-        pergunta_request_DTO pergunta = (pergunta_request_DTO) perguntas.getValue().get(0);
+        PerguntaRequestDTO pergunta = (PerguntaRequestDTO) perguntas.getValue().get(0);
         assertThat(pergunta.getTipo()).isEqualTo(TipoPergunta.DISCURSIVA);
         assertThat(pergunta.getAlternativas()).isEmpty();
     }
@@ -331,7 +331,7 @@ class PerguntaIaServiceTests {
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
         when(transactionService.salvarComAuditoria(
                 anyLong(), any(), anyString(), anyLong(), anyString(), any()))
-                .thenReturn(List.of(new pergunta_response_DTO()));
+                .thenReturn(List.of(new PerguntaResponseDTO()));
 
         service.gerarPerguntas(1L, requisicao);
 
@@ -341,7 +341,7 @@ class PerguntaIaServiceTests {
 
     private PerguntaIaService prepararCasoValido() {
         PerguntaIaService service = serviceComChave();
-        casos_clinicos caso = caso(StatusCasoClinico.RASCUNHO);
+        CasoClinico caso = caso(StatusCasoClinico.RASCUNHO);
         when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
         when(conteudoRepository.findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(1L))
                 .thenReturn(Optional.of(conteudo(caso)));
@@ -391,8 +391,8 @@ class PerguntaIaServiceTests {
                         new AlternativaGeradaIaDTO("D", "Ignorar os sinais de gravidade", false)));
     }
 
-    private casos_clinicos caso(StatusCasoClinico status) {
-        casos_clinicos caso = new casos_clinicos();
+    private CasoClinico caso(StatusCasoClinico status) {
+        CasoClinico caso = new CasoClinico();
         caso.setIdCaso(1L);
         caso.setStatus(status);
         caso.setTitulo("Caso respiratorio");
@@ -405,8 +405,8 @@ class PerguntaIaServiceTests {
         return caso;
     }
 
-    private conteudo_clinico conteudo(casos_clinicos caso) {
-        conteudo_clinico conteudo = new conteudo_clinico();
+    private ConteudoClinico conteudo(CasoClinico caso) {
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setIdConteudo(10L);
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Febre, tosse e dispneia");

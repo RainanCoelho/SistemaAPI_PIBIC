@@ -4,15 +4,15 @@ import java.time.Instant;
 
 import org.springframework.stereotype.Component;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.LoginResponseDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.usuario_response_DTO;
+import com.SistemaApiCrud.SistemaCrud.dto.LoginResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.UsuarioResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 
 @Component
 public class UsuarioMapper {
 
-    public usuario_response_DTO toResponse(Usuario usuario) {
-        return new usuario_response_DTO(
+    public UsuarioResponseDTO toResponse(Usuario usuario) {
+        return new UsuarioResponseDTO(
                 usuario.getId(),
                 usuario.getUsername(),
                 usuario.getRole(),

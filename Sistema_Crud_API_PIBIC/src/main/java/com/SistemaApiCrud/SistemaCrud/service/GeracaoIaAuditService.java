@@ -16,28 +16,28 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.AuditoriaGeracaoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.AuditoriaGeracaoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AuditoriaGeracaoIa;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.OperacaoGeracaoIa;
-import com.SistemaApiCrud.SistemaCrud.repository.auditoria_geracao_ia_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.AuditoriaGeracaoIaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class GeracaoIaAuditService {
 
-    private final auditoria_geracao_ia_repository repository;
-    private final usuario_repository usuarioRepository;
+    private final AuditoriaGeracaoIaRepository repository;
+    private final UsuarioRepository usuarioRepository;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final String provedor;
     private final String modelo;
 
     public GeracaoIaAuditService(
-            auditoria_geracao_ia_repository repository,
-            usuario_repository usuarioRepository,
+            AuditoriaGeracaoIaRepository repository,
+            UsuarioRepository usuarioRepository,
             @Value("${spring.ai.openai.base-url:nao-configurado}") String urlBase,
             @Value("${spring.ai.openai.chat.model:nao-configurado}") String modelo) {
         this.repository = repository;
@@ -48,7 +48,7 @@ public class GeracaoIaAuditService {
 
     @Transactional
     public void registrar(
-            casos_clinicos caso,
+            CasoClinico caso,
             OperacaoGeracaoIa operacao,
             String versaoPrompt,
             String contexto,

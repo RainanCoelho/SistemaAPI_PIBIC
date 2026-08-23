@@ -10,13 +10,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.LoginRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.LoginResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.LoginRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.LoginResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
 import com.SistemaApiCrud.SistemaCrud.mapper.UsuarioMapper;
 import com.SistemaApiCrud.SistemaCrud.service.JwtService;
 import com.SistemaApiCrud.SistemaCrud.service.LoginAttemptService;
-import com.SistemaApiCrud.SistemaCrud.service.usuario_service;
+import com.SistemaApiCrud.SistemaCrud.service.UsuarioService;
 
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,14 +27,14 @@ public class AuthenticationController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final usuario_service usuarioService;
+    private final UsuarioService usuarioService;
     private final UsuarioMapper usuarioMapper;
     private final LoginAttemptService loginAttemptService;
 
     public AuthenticationController(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
-            usuario_service usuarioService,
+            UsuarioService usuarioService,
             UsuarioMapper usuarioMapper,
             LoginAttemptService loginAttemptService) {
         this.authenticationManager = authenticationManager;

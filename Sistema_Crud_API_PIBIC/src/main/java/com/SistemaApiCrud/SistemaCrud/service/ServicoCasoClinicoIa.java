@@ -7,14 +7,14 @@ import java.util.function.Consumer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoResponseDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PacienteGeradoIaDTO;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoAjusteRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PacienteGeradoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.OperacaoGeracaoIa;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
@@ -23,9 +23,9 @@ import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
 import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
 
 @Service
 public class ServicoCasoClinicoIa {
@@ -56,9 +56,9 @@ public class ServicoCasoClinicoIa {
             """;
 
     private final CasoClinicoAiClient clienteIa;
-    private final caso_clinico_repository casoRepository;
-    private final conteudo_clinico_repository conteudoRepository;
-    private final paciente_repository pacienteRepository;
+    private final CasoClinicoRepository casoRepository;
+    private final ConteudoClinicoRepository conteudoRepository;
+    private final PacienteRepository pacienteRepository;
     private final CasoClinicoIaTransactionService servicoTransacional;
     private final GeracaoIaAuditService auditService;
     private final ProtecaoDadosClinicosIa protecaoDadosClinicosIa;
@@ -66,9 +66,9 @@ public class ServicoCasoClinicoIa {
 
     public ServicoCasoClinicoIa(
             CasoClinicoAiClient clienteIa,
-            caso_clinico_repository casoRepository,
-            conteudo_clinico_repository conteudoRepository,
-            paciente_repository pacienteRepository,
+            CasoClinicoRepository casoRepository,
+            ConteudoClinicoRepository conteudoRepository,
+            PacienteRepository pacienteRepository,
             CasoClinicoIaTransactionService servicoTransacional,
             GeracaoIaAuditService auditService,
             ProtecaoDadosClinicosIa protecaoDadosClinicosIa,
@@ -83,14 +83,14 @@ public class ServicoCasoClinicoIa {
         this.chaveApi = chaveApi;
     }
 
-    public CasoClinicoResponseDTO gerarConteudo(Long idCaso, CasoClinicoRequestDTO requisicao) {
+    public CasoClinicoIaResponseDTO gerarConteudo(Long idCaso, CasoClinicoIaRequestDTO requisicao) {
         validarAtestacaoDados(requisicao.getDadosSinteticosOuDesidentificados());
-        casos_clinicos caso = casoRepository.findById(idCaso)
+        CasoClinico caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         CasoClinicoPolicy.validarRascunho(caso);
-        Optional<conteudo_clinico> conteudoAnterior = conteudoRepository
+        Optional<ConteudoClinico> conteudoAnterior = conteudoRepository
                 .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso);
-        List<paciente> pacientesAtuais = pacienteRepository
+        List<Paciente> pacientesAtuais = pacienteRepository
                 .findByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
         validarComplementoPaciente(requisicao, pacientesAtuais);
         String assinatura = CasoClinicoFingerprint.calcular(
@@ -112,14 +112,14 @@ public class ServicoCasoClinicoIa {
         return servicoTransacional.executarGeracao(
                 idCaso,
                 assinatura,
-                pacientesAtuais.stream().map(paciente::getIdPaciente).toList(),
+                pacientesAtuais.stream().map(Paciente::getIdPaciente).toList(),
                 casoAtual -> {
                     aplicarComplementosGerados(casoAtual, requisicao, conteudoGerado);
-                    CasoClinicoResponseDTO resposta = montarResposta(
+                    CasoClinicoIaResponseDTO resposta = montarResposta(
                             idCaso,
                             requisicao,
                             conteudoGerado);
-                    conteudo_clinico conteudoSalvo = salvarConteudo(casoAtual, resposta);
+                    ConteudoClinico conteudoSalvo = salvarConteudo(casoAtual, resposta);
                     resposta.setIdConteudo(conteudoSalvo.getIdConteudo());
                     if (utilizouIa) {
                         auditService.registrar(
@@ -135,16 +135,16 @@ public class ServicoCasoClinicoIa {
                 });
     }
 
-    public CasoClinicoResponseDTO ajustarConteudo(Long idCaso, CasoClinicoAjusteRequestDTO requisicao) {
+    public CasoClinicoIaResponseDTO ajustarConteudo(Long idCaso, CasoClinicoAjusteRequestDTO requisicao) {
         validarAtestacaoDados(requisicao.getDadosSinteticosOuDesidentificados());
-        casos_clinicos caso = casoRepository.findById(idCaso)
+        CasoClinico caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         CasoClinicoPolicy.validarRascunho(caso);
-        conteudo_clinico conteudoAtual = conteudoRepository
+        ConteudoClinico conteudoAtual = conteudoRepository
                 .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Conteudo clinico nao encontrado para este caso"));
-        List<paciente> pacientesAtuais = pacienteRepository
+        List<Paciente> pacientesAtuais = pacienteRepository
                 .findByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
         String assinatura = CasoClinicoFingerprint.calcular(
                 caso,
@@ -163,19 +163,19 @@ public class ServicoCasoClinicoIa {
                 idCaso,
                 conteudoAtual.getIdConteudo(),
                 assinatura,
-                pacientesAtuais.stream().map(paciente::getIdPaciente).toList(),
+                pacientesAtuais.stream().map(Paciente::getIdPaciente).toList(),
                 (casoAtual, conteudoAtualizado) -> {
-                    CasoClinicoRequestDTO dadosImutaveis = new CasoClinicoRequestDTO(
+                    CasoClinicoIaRequestDTO dadosImutaveis = new CasoClinicoIaRequestDTO(
                             null,
                             null,
                             null,
                             null,
                             conteudoAtualizado.getDiagEsperado());
-                    CasoClinicoResponseDTO resposta = montarResposta(
+                    CasoClinicoIaResponseDTO resposta = montarResposta(
                             idCaso,
                             dadosImutaveis,
                             conteudoGerado);
-                    conteudo_clinico conteudoSalvo = atualizarConteudo(conteudoAtualizado, resposta);
+                    ConteudoClinico conteudoSalvo = atualizarConteudo(conteudoAtualizado, resposta);
                     resposta.setIdConteudo(conteudoSalvo.getIdConteudo());
                     auditService.registrar(
                             casoAtual,
@@ -204,9 +204,9 @@ public class ServicoCasoClinicoIa {
     }
 
     private String montarPromptGeracao(
-            casos_clinicos caso,
-            CasoClinicoRequestDTO requisicao,
-            List<paciente> pacientesAtuais) {
+            CasoClinico caso,
+            CasoClinicoIaRequestDTO requisicao,
+            List<Paciente> pacientesAtuais) {
         StringBuilder contexto = new StringBuilder();
         contexto.append("""
                 <tarefa>
@@ -268,9 +268,9 @@ public class ServicoCasoClinicoIa {
     }
 
     private String montarPromptAjuste(
-            casos_clinicos caso,
-            conteudo_clinico conteudoAtual,
-            List<paciente> pacientesAtuais,
+            CasoClinico caso,
+            ConteudoClinico conteudoAtual,
+            List<Paciente> pacientesAtuais,
             CasoClinicoAjusteRequestDTO ajuste) {
         StringBuilder contexto = new StringBuilder();
         contexto.append("""
@@ -340,9 +340,9 @@ public class ServicoCasoClinicoIa {
 
     private void adicionarPacientes(
             StringBuilder contexto,
-            List<paciente> pacientesAtuais) {
+            List<Paciente> pacientesAtuais) {
         for (int indice = 0; indice < pacientesAtuais.size(); indice++) {
-            paciente pacienteAtual = pacientesAtuais.get(indice);
+            Paciente pacienteAtual = pacientesAtuais.get(indice);
             contexto.append("<dados_clinicos_minimos_paciente indice=\"")
                     .append(indice + 1)
                     .append("\">\n");
@@ -359,8 +359,8 @@ public class ServicoCasoClinicoIa {
     }
 
     private void validarComplementoPaciente(
-            CasoClinicoRequestDTO requisicao,
-            List<paciente> pacientesAtuais) {
+            CasoClinicoIaRequestDTO requisicao,
+            List<Paciente> pacientesAtuais) {
         if (Boolean.TRUE.equals(requisicao.getPermitirComplementoIa())
                 && pacientesAtuais.size() != 1) {
             throw new BusinessException(
@@ -387,8 +387,8 @@ public class ServicoCasoClinicoIa {
 
     private void validarGeracao(
             CasoClinicoGeradoIaDTO gerado,
-            casos_clinicos caso,
-            CasoClinicoRequestDTO requisicao) {
+            CasoClinico caso,
+            CasoClinicoIaRequestDTO requisicao) {
         if (gerado == null) {
             throw new AiProviderException("A IA nao retornou um caso clinico valido");
         }
@@ -474,11 +474,11 @@ public class ServicoCasoClinicoIa {
         }
     }
 
-    private CasoClinicoResponseDTO montarResposta(
+    private CasoClinicoIaResponseDTO montarResposta(
             Long idCaso,
-            CasoClinicoRequestDTO requisicao,
+            CasoClinicoIaRequestDTO requisicao,
             CasoClinicoGeradoIaDTO gerado) {
-        CasoClinicoResponseDTO resposta = new CasoClinicoResponseDTO();
+        CasoClinicoIaResponseDTO resposta = new CasoClinicoIaResponseDTO();
         resposta.setIdCaso(idCaso);
         resposta.setSintomas(campoFinal(requisicao.getSintomas(), gerado, "sintomas"));
         resposta.setContexto(campoFinal(requisicao.getContexto(), gerado, "contexto"));
@@ -488,23 +488,23 @@ public class ServicoCasoClinicoIa {
         return resposta;
     }
 
-    private conteudo_clinico salvarConteudo(
-            casos_clinicos caso,
-            CasoClinicoResponseDTO resposta) {
-        conteudo_clinico conteudo = new conteudo_clinico();
+    private ConteudoClinico salvarConteudo(
+            CasoClinico caso,
+            CasoClinicoIaResponseDTO resposta) {
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         return preencherESalvarConteudo(conteudo, resposta);
     }
 
-    private conteudo_clinico atualizarConteudo(
-            conteudo_clinico conteudo,
-            CasoClinicoResponseDTO resposta) {
+    private ConteudoClinico atualizarConteudo(
+            ConteudoClinico conteudo,
+            CasoClinicoIaResponseDTO resposta) {
         return preencherESalvarConteudo(conteudo, resposta);
     }
 
-    private conteudo_clinico preencherESalvarConteudo(
-            conteudo_clinico conteudo,
-            CasoClinicoResponseDTO resposta) {
+    private ConteudoClinico preencherESalvarConteudo(
+            ConteudoClinico conteudo,
+            CasoClinicoIaResponseDTO resposta) {
         conteudo.setSintomas(resposta.getSintomas());
         conteudo.setContexto(resposta.getContexto());
         conteudo.setExamClinico(resposta.getExamClinico());
@@ -514,12 +514,12 @@ public class ServicoCasoClinicoIa {
     }
 
     private void aplicarComplementosGerados(
-            casos_clinicos caso,
-            CasoClinicoRequestDTO requisicao,
+            CasoClinico caso,
+            CasoClinicoIaRequestDTO requisicao,
             CasoClinicoGeradoIaDTO gerado) {
         atualizarObjetivoAprendizagem(caso, gerado);
         if (Boolean.TRUE.equals(requisicao.getPermitirComplementoIa())) {
-            List<paciente> pacientes = pacienteRepository
+            List<Paciente> pacientes = pacienteRepository
                     .findByCasoClinicoIdCasoOrderByIdPacienteAsc(caso.getIdCaso());
             if (pacientes.size() != 1) {
                 throw new ConflitoEstadoException(
@@ -530,7 +530,7 @@ public class ServicoCasoClinicoIa {
     }
 
     private void atualizarObjetivoAprendizagem(
-            casos_clinicos caso,
+            CasoClinico caso,
             CasoClinicoGeradoIaDTO gerado) {
         if (preenchido(caso.getObjetivoAprendizagem())) {
             return;
@@ -543,7 +543,7 @@ public class ServicoCasoClinicoIa {
     }
 
     private void atualizarPacienteComIa(
-            paciente paciente,
+            Paciente paciente,
             CasoClinicoGeradoIaDTO gerado) {
         PacienteGeradoIaDTO pacienteGerado = gerado.getPaciente();
         if (pacienteGerado == null) {
@@ -634,7 +634,7 @@ public class ServicoCasoClinicoIa {
         };
     }
 
-    private boolean precisaGerar(casos_clinicos caso, CasoClinicoRequestDTO requisicao) {
+    private boolean precisaGerar(CasoClinico caso, CasoClinicoIaRequestDTO requisicao) {
         return !preenchido(requisicao.getSintomas())
                 || !preenchido(requisicao.getContexto())
                 || !preenchido(requisicao.getExamClinico())

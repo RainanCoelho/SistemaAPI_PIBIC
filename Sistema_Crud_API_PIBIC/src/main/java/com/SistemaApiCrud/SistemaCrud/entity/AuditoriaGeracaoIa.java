@@ -32,7 +32,7 @@ public class AuditoriaGeracaoIa {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fk_id_caso", nullable = false)
-    private casos_clinicos casoClinico;
+    private CasoClinico casoClinico;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fk_id_usuario", nullable = false)

@@ -16,12 +16,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoAjusteRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoResponseDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.AuditoriaGeracaoIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.GerarPerguntasIaRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoAjusteRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.AuditoriaGeracaoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.GerarPerguntasIaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.service.AutorizacaoUsuarioService;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaIaService;
 import com.SistemaApiCrud.SistemaCrud.service.ServicoCasoClinicoIa;
@@ -52,15 +52,15 @@ public class CasoClinicoIAController {
     }
 
     @PostMapping("/gerar")
-    public ResponseEntity<CasoClinicoResponseDTO> gerarConteudo(
+    public ResponseEntity<CasoClinicoIaResponseDTO> gerarConteudo(
             @PathVariable @Min(1) Long id,
-            @RequestBody @Valid CasoClinicoRequestDTO requisicao) {
+            @RequestBody @Valid CasoClinicoIaRequestDTO requisicao) {
         servicoAutorizacao.validarAcessoCaso(id);
         return ResponseEntity.ok(servicoCasoClinicoIa.gerarConteudo(id, requisicao));
     }
 
     @PostMapping("/ajustar")
-    public ResponseEntity<CasoClinicoResponseDTO> ajustarConteudo(
+    public ResponseEntity<CasoClinicoIaResponseDTO> ajustarConteudo(
             @PathVariable @Min(1) Long id,
             @RequestBody @Valid CasoClinicoAjusteRequestDTO requisicao) {
         servicoAutorizacao.validarAcessoCaso(id);
@@ -68,7 +68,7 @@ public class CasoClinicoIAController {
     }
 
     @PostMapping("/perguntas/gerar")
-    public ResponseEntity<List<pergunta_response_DTO>> gerarPerguntas(
+    public ResponseEntity<List<PerguntaResponseDTO>> gerarPerguntas(
             @PathVariable @Min(1) Long id,
             @RequestBody @Valid GerarPerguntasIaRequestDTO requisicao) {
         servicoAutorizacao.validarAcessoCaso(id);

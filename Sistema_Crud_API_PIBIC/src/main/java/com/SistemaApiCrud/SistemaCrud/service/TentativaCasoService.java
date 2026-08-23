@@ -9,27 +9,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.SistemaApiCrud.SistemaCrud.entity.Aluno;
 import com.SistemaApiCrud.SistemaCrud.entity.TentativaCaso;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
-import com.SistemaApiCrud.SistemaCrud.repository.aluno_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.tentativa_caso_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.AlunoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.TentativaCasoRepository;
 
 @Service
 public class TentativaCasoService {
 
-    private final tentativa_caso_repository repository;
-    private final aluno_repository alunoRepository;
+    private final TentativaCasoRepository repository;
+    private final AlunoRepository alunoRepository;
 
     public TentativaCasoService(
-            tentativa_caso_repository repository,
-            aluno_repository alunoRepository) {
+            TentativaCasoRepository repository,
+            AlunoRepository alunoRepository) {
         this.repository = repository;
         this.alunoRepository = alunoRepository;
     }
 
     @Transactional
-    public TentativaCaso iniciarOuBuscar(Long idAluno, casos_clinicos caso) {
+    public TentativaCaso iniciarOuBuscar(Long idAluno, CasoClinico caso) {
         TentativaCaso tentativa = repository
                 .findByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, caso.getIdCaso())
                 .orElseGet(() -> criarTentativa(idAluno, caso));
@@ -58,7 +58,7 @@ public class TentativaCasoService {
         return Math.max(0, Duration.between(Instant.now(), tentativa.getDataLimite()).toSeconds());
     }
 
-    private TentativaCaso criarTentativa(Long idAluno, casos_clinicos caso) {
+    private TentativaCaso criarTentativa(Long idAluno, CasoClinico caso) {
         Aluno aluno = alunoRepository.findById(idAluno)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Aluno nao encontrado"));
         Instant inicio = agora();

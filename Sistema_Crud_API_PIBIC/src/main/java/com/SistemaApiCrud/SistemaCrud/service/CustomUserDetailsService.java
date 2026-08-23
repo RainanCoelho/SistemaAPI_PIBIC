@@ -7,14 +7,14 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final usuario_repository repository;
+    private final UsuarioRepository repository;
 
-    public CustomUserDetailsService(usuario_repository repository) {
+    public CustomUserDetailsService(UsuarioRepository repository) {
         this.repository = repository;
     }
 

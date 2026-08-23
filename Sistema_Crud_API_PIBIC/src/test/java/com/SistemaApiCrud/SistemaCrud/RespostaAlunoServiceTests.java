@@ -21,52 +21,52 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.responder_caso_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.alternativa_pergunta_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.caso_clinico_response_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.conteudo_clinico_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.paciente_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.resposta_pergunta_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.resultado_caso_DTO;
+import com.SistemaApiCrud.SistemaCrud.dto.ResponderCasoRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.AlternativaPerguntaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.ConteudoClinicoDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PacienteDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.RespostaPerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.ResultadoCasoDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AlternativaPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.Aluno;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
-import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
+import com.SistemaApiCrud.SistemaCrud.entity.Pergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.alternativa_pergunta_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.aluno_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.tentativa_caso_repository;
-import com.SistemaApiCrud.SistemaCrud.service.caso_clinico_service;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.AlternativaPerguntaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.AlunoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PerguntaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ProfessorRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.TentativaCasoRepository;
+import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoService;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoFingerprint;
 import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoIaTransactionService;
 import com.SistemaApiCrud.SistemaCrud.service.JwtService;
-import com.SistemaApiCrud.SistemaCrud.service.conteudo_clinico_service;
-import com.SistemaApiCrud.SistemaCrud.service.paciente_service;
-import com.SistemaApiCrud.SistemaCrud.service.pergunta_service;
-import com.SistemaApiCrud.SistemaCrud.service.resposta_aluno_service;
+import com.SistemaApiCrud.SistemaCrud.service.ConteudoClinicoService;
+import com.SistemaApiCrud.SistemaCrud.service.PacienteService;
+import com.SistemaApiCrud.SistemaCrud.service.PerguntaService;
+import com.SistemaApiCrud.SistemaCrud.service.RespostaAlunoService;
 
 @SpringBootTest
 class RespostaAlunoServiceTests {
 
     @Autowired
-    private resposta_aluno_service respostaService;
+    private RespostaAlunoService respostaService;
 
     @Autowired
     private JwtService jwtService;
@@ -78,46 +78,46 @@ class RespostaAlunoServiceTests {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private caso_clinico_service casoService;
+    private CasoClinicoService casoService;
 
     @Autowired
-    private pergunta_service perguntaService;
+    private PerguntaService perguntaService;
 
     @Autowired
     private CasoClinicoIaTransactionService casoClinicoIaTransactionService;
 
     @Autowired
-    private paciente_service pacienteService;
+    private PacienteService pacienteService;
 
     @Autowired
-    private conteudo_clinico_service conteudoService;
+    private ConteudoClinicoService conteudoService;
 
     @Autowired
-    private aluno_repository alunoRepository;
+    private AlunoRepository alunoRepository;
 
     @Autowired
-    private professor_repository professorRepository;
+    private ProfessorRepository professorRepository;
 
     @Autowired
-    private caso_clinico_repository casoRepository;
+    private CasoClinicoRepository casoRepository;
 
     @Autowired
-    private paciente_repository pacienteRepository;
+    private PacienteRepository pacienteRepository;
 
     @Autowired
-    private conteudo_clinico_repository conteudoRepository;
+    private ConteudoClinicoRepository conteudoRepository;
 
     @Autowired
-    private pergunta_repository perguntaRepository;
+    private PerguntaRepository perguntaRepository;
 
     @Autowired
-    private alternativa_pergunta_repository alternativaRepository;
+    private AlternativaPerguntaRepository alternativaRepository;
 
     @Autowired
-    private usuario_repository usuarioRepository;
+    private UsuarioRepository usuarioRepository;
 
     @Autowired
-    private tentativa_caso_repository tentativaRepository;
+    private TentativaCasoRepository tentativaRepository;
 
     @BeforeEach
     void autenticarAdministradorNosTestesDeServico() {
@@ -136,14 +136,14 @@ class RespostaAlunoServiceTests {
     @Test
     void deveResponderCasoPublicadoECalcularResultado() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Ana", "ana@email.com", "Medicina", "4"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta pergunta = criarPergunta(caso, "A");
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta pergunta = criarPergunta(caso, "A");
 
-        responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(pergunta.getId(), "A")));
+        ResponderCasoRequestDTO request = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(pergunta.getId(), "A")));
 
         iniciarTentativa(aluno, caso);
-        resultado_caso_DTO resultado = respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request);
+        ResultadoCasoDTO resultado = respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request);
 
         assertThat(resultado.getTotalRespondidas()).isEqualTo(1);
         assertThat(resultado.getTotalCorretas()).isEqualTo(1);
@@ -159,11 +159,11 @@ class RespostaAlunoServiceTests {
     @Test
     void naoDeveResponderCasoNaoPublicado() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Bruno", "bruno@email.com", "Medicina", "5"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        pergunta pergunta = criarPergunta(caso, "B");
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        Pergunta pergunta = criarPergunta(caso, "B");
 
-        responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(pergunta.getId(), "B")));
+        ResponderCasoRequestDTO request = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(pergunta.getId(), "B")));
 
         assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request))
                 .isInstanceOf(BusinessException.class)
@@ -173,31 +173,31 @@ class RespostaAlunoServiceTests {
     @Test
     void deveExigirTodasAsPerguntasSemDuplicidade() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Diego", "diego@email.com", "Medicina", "7"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta primeira = criarPergunta(caso, "A");
-        pergunta segunda = criarPergunta(caso, "B");
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta primeira = criarPergunta(caso, "A");
+        Pergunta segunda = criarPergunta(caso, "B");
 
-        responder_caso_request_DTO incompleta = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(primeira.getId(), "A")));
+        ResponderCasoRequestDTO incompleta = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(primeira.getId(), "A")));
 
         iniciarTentativa(aluno, caso);
         assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), incompleta))
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
                 .hasMessage("Todas as perguntas do caso devem ser respondidas exatamente uma vez");
 
-        responder_caso_request_DTO duplicada = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(primeira.getId(), "A"),
-                new resposta_pergunta_request_DTO(primeira.getId(), "A")));
+        ResponderCasoRequestDTO duplicada = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(primeira.getId(), "A"),
+                new RespostaPerguntaRequestDTO(primeira.getId(), "A")));
 
         assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), duplicada))
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
                 .hasMessage("Cada pergunta deve ser respondida uma unica vez");
 
-        casos_clinicos outroCaso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta perguntaDeOutroCaso = criarPergunta(outroCaso, "A");
-        responder_caso_request_DTO comPerguntaDeOutroCaso = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(primeira.getId(), "A"),
-                new resposta_pergunta_request_DTO(perguntaDeOutroCaso.getId(), "A")));
+        CasoClinico outroCaso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta perguntaDeOutroCaso = criarPergunta(outroCaso, "A");
+        ResponderCasoRequestDTO comPerguntaDeOutroCaso = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(primeira.getId(), "A"),
+                new RespostaPerguntaRequestDTO(perguntaDeOutroCaso.getId(), "A")));
 
         assertThatThrownBy(() -> respostaService.responderCaso(
                 aluno.getIdAluno(),
@@ -212,18 +212,18 @@ class RespostaAlunoServiceTests {
     @Test
     void deveCorrigirRespostaUsandoAlternativasSeparadas() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Clara", "clara@email.com", "Medicina", "6"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta pergunta = criarPerguntaSemAlternativas(caso, "A");
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta pergunta = criarPerguntaSemAlternativas(caso, "A");
 
         alternativaRepository.saveAll(List.of(
                 new AlternativaPergunta(null, pergunta, "A", "Conduta antiga", false),
                 new AlternativaPergunta(null, pergunta, "B", "Conduta correta", true)));
 
-        responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(pergunta.getId(), "Conduta correta")));
+        ResponderCasoRequestDTO request = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(pergunta.getId(), "Conduta correta")));
 
         iniciarTentativa(aluno, caso);
-        resultado_caso_DTO resultado = respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request);
+        ResultadoCasoDTO resultado = respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request);
 
         assertThat(resultado.getTotalCorretas()).isEqualTo(1);
         assertThat(resultado.getRespostas().get(0).getCorreta()).isTrue();
@@ -237,42 +237,42 @@ class RespostaAlunoServiceTests {
                 "helena-correcao@email.com",
                 "Medicina",
                 "6"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta verdadeiro = criarPerguntaPorTipo(
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta verdadeiro = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.VERDADEIRO_FALSO,
                 "VERDADEIRO");
-        pergunta falso = criarPerguntaPorTipo(
+        Pergunta falso = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.VERDADEIRO_FALSO,
                 "FALSO");
-        pergunta abreviacaoInvalida = criarPerguntaPorTipo(
+        Pergunta abreviacaoInvalida = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.VERDADEIRO_FALSO,
                 "VERDADEIRO");
-        pergunta diagnostico = criarPerguntaPorTipo(
+        Pergunta diagnostico = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.DIAGNOSTICO,
                 "Pneumonia adquirida na comunidade (PAC)|Pneumônia, comunitária");
-        pergunta discursiva = criarPerguntaPorTipo(
+        Pergunta discursiva = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.DISCURSIVA,
                 "REVISAO_MANUAL");
-        pergunta conduta = criarPerguntaPorTipo(
+        Pergunta conduta = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.CONDUTA_CLINICA,
                 "REVISAO_MANUAL");
 
-        responder_caso_request_DTO requisicao = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(verdadeiro.getId(), "  VÉRDADEIRO  "),
-                new resposta_pergunta_request_DTO(falso.getId(), " falso "),
-                new resposta_pergunta_request_DTO(abreviacaoInvalida.getId(), "V"),
-                new resposta_pergunta_request_DTO(diagnostico.getId(), "pneumonia comunitaria!"),
-                new resposta_pergunta_request_DTO(discursiva.getId(), "Resposta argumentada do aluno"),
-                new resposta_pergunta_request_DTO(conduta.getId(), "Plano terapeutico do aluno")));
+        ResponderCasoRequestDTO requisicao = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(verdadeiro.getId(), "  VÉRDADEIRO  "),
+                new RespostaPerguntaRequestDTO(falso.getId(), " falso "),
+                new RespostaPerguntaRequestDTO(abreviacaoInvalida.getId(), "V"),
+                new RespostaPerguntaRequestDTO(diagnostico.getId(), "pneumonia comunitaria!"),
+                new RespostaPerguntaRequestDTO(discursiva.getId(), "Resposta argumentada do aluno"),
+                new RespostaPerguntaRequestDTO(conduta.getId(), "Plano terapeutico do aluno")));
 
         iniciarTentativa(aluno, caso);
-        resultado_caso_DTO resultado = respostaService.responderCaso(
+        ResultadoCasoDTO resultado = respostaService.responderCaso(
                 aluno.getIdAluno(),
                 caso.getIdCaso(),
                 requisicao);
@@ -309,25 +309,25 @@ class RespostaAlunoServiceTests {
                 "livia-marcador@email.com",
                 "Medicina",
                 "8"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta marcadorPositivo = criarPerguntaPorTipo(
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta marcadorPositivo = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.DIAGNOSTICO,
                 "HER2+");
-        pergunta marcadorNegativo = criarPerguntaPorTipo(
+        Pergunta marcadorNegativo = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.DIAGNOSTICO,
                 "HER2-");
-        responder_caso_request_DTO requisicao = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(
+        ResponderCasoRequestDTO requisicao = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(
                         marcadorPositivo.getId(),
                         "HER2 positivo"),
-                new resposta_pergunta_request_DTO(
+                new RespostaPerguntaRequestDTO(
                         marcadorNegativo.getId(),
                         "HER2 positivo")));
 
         iniciarTentativa(aluno, caso);
-        resultado_caso_DTO resultado = respostaService.responderCaso(
+        ResultadoCasoDTO resultado = respostaService.responderCaso(
                 aluno.getIdAluno(),
                 caso.getIdCaso(),
                 requisicao);
@@ -346,18 +346,18 @@ class RespostaAlunoServiceTests {
                 "igor-revisao@email.com",
                 "Medicina",
                 "7"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta discursiva = criarPerguntaPorTipo(
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta discursiva = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.DISCURSIVA,
                 "REVISAO_MANUAL");
-        responder_caso_request_DTO requisicao = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(
+        ResponderCasoRequestDTO requisicao = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(
                         discursiva.getId(),
                         "Resposta que sera revisada pelo professor")));
 
         iniciarTentativa(aluno, caso);
-        resultado_caso_DTO resultado = respostaService.responderCaso(
+        ResultadoCasoDTO resultado = respostaService.responderCaso(
                 aluno.getIdAluno(),
                 caso.getIdCaso(),
                 requisicao);
@@ -377,18 +377,18 @@ class RespostaAlunoServiceTests {
                 "julia-revisao@email.com",
                 "Medicina",
                 "8"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta discursiva = criarPerguntaPorTipo(
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta discursiva = criarPerguntaPorTipo(
                 caso,
                 TipoPergunta.DISCURSIVA,
                 "REVISAO_MANUAL");
-        responder_caso_request_DTO requisicao = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(
+        ResponderCasoRequestDTO requisicao = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(
                         discursiva.getId(),
                         "Resposta fundamentada para revisao")));
 
         iniciarTentativa(aluno, caso);
-        resultado_caso_DTO resultado = respostaService.responderCaso(
+        ResultadoCasoDTO resultado = respostaService.responderCaso(
                 aluno.getIdAluno(),
                 caso.getIdCaso(),
                 requisicao);
@@ -448,7 +448,7 @@ class RespostaAlunoServiceTests {
 
     @Test
     void naoDeveExibirCasoCompletoNaoPublicadoParaAluno() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
 
         assertThatThrownBy(() -> casoService.buscarCompletoPublicadoPorId(caso.getIdCaso(), 1L))
                 .isInstanceOf(BusinessException.class)
@@ -458,8 +458,8 @@ class RespostaAlunoServiceTests {
     @Test
     void naoDeveAceitarRespostasDepoisDoPrazoDoCaso() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Elisa", "elisa@email.com", "Medicina", "8"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta pergunta = criarPergunta(caso, "A");
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Pergunta pergunta = criarPergunta(caso, "A");
         iniciarTentativa(aluno, caso);
 
         var tentativa = tentativaRepository
@@ -469,8 +469,8 @@ class RespostaAlunoServiceTests {
         tentativa.setDataLimite(Instant.now().minusSeconds(1));
         tentativaRepository.saveAndFlush(tentativa);
 
-        responder_caso_request_DTO request = new responder_caso_request_DTO(List.of(
-                new resposta_pergunta_request_DTO(pergunta.getId(), "A")));
+        ResponderCasoRequestDTO request = new ResponderCasoRequestDTO(List.of(
+                new RespostaPerguntaRequestDTO(pergunta.getId(), "A")));
 
         assertThatThrownBy(() -> respostaService.responderCaso(aluno.getIdAluno(), caso.getIdCaso(), request))
                 .isInstanceOf(BusinessException.class)
@@ -480,7 +480,7 @@ class RespostaAlunoServiceTests {
     @Test
     void recarregarCasoNaoDeveReiniciarPrazo() {
         Aluno aluno = alunoRepository.save(new Aluno(null, "Fabio", "fabio@email.com", "Medicina", "9"));
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
         criarPergunta(caso, "A");
 
         var primeiraAbertura = casoService.buscarCompletoPublicadoPorId(
@@ -498,10 +498,10 @@ class RespostaAlunoServiceTests {
 
     @Test
     void deveListarCasosPaginadosComFiltros() {
-        casos_clinicos casoPublicado = criarCaso(StatusCasoClinico.PUBLICADO);
+        CasoClinico casoPublicado = criarCaso(StatusCasoClinico.PUBLICADO);
         criarCaso(StatusCasoClinico.RASCUNHO);
 
-        Page<caso_clinico_response_DTO> pagina = casoService.listarPaginado(
+        Page<CasoClinicoResponseDTO> pagina = casoService.listarPaginado(
                 StatusCasoClinico.PUBLICADO,
                 casoPublicado.getProfessor().getId(),
                 "respiratorio",
@@ -513,13 +513,13 @@ class RespostaAlunoServiceTests {
 
     @Test
     void naoDevePublicarCasoSemPacienteConteudoEPergunta() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
 
         assertThatThrownBy(() -> casoService.publicar(caso.getIdCaso()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Cadastre ao menos um paciente antes de publicar o caso clinico");
 
-        pacienteRepository.save(new paciente(
+        pacienteRepository.save(new Paciente(
                 null,
                 caso,
                 "Paciente Teste",
@@ -534,7 +534,7 @@ class RespostaAlunoServiceTests {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Cadastre ou gere o conteudo clinico antes de publicar o caso clinico");
 
-        conteudo_clinico conteudo = new conteudo_clinico();
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Sintomas");
         conteudo.setContexto("Contexto");
@@ -548,33 +548,33 @@ class RespostaAlunoServiceTests {
                 .hasMessage("Cadastre ao menos uma pergunta antes de publicar o caso clinico");
 
         criarPergunta(caso, "A");
-        caso_clinico_response_DTO publicado = casoService.publicar(caso.getIdCaso());
+        CasoClinicoResponseDTO publicado = casoService.publicar(caso.getIdCaso());
 
         assertThat(publicado.getStatus()).isEqualTo(StatusCasoClinico.PUBLICADO);
     }
 
     @Test
     void deveValidarAlternativasDeMultiplaEscolha() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        pergunta_request_DTO comLetraDuplicada = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Primeira", true),
-                new alternativa_pergunta_DTO(null, "A", "Duplicada", false)));
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        PerguntaRequestDTO comLetraDuplicada = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Primeira", true),
+                new AlternativaPerguntaDTO(null, "A", "Duplicada", false)));
 
         assertThatThrownBy(() -> perguntaService.salvarEmCaso(caso.getIdCaso(), comLetraDuplicada))
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
                 .hasMessage("As letras das alternativas nao podem se repetir");
 
-        pergunta_request_DTO comTextoDuplicado = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Conduta inicial", true),
-                new alternativa_pergunta_DTO(null, "B", "  CONDUTA   INICIAL  ", false)));
+        PerguntaRequestDTO comTextoDuplicado = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Conduta inicial", true),
+                new AlternativaPerguntaDTO(null, "B", "  CONDUTA   INICIAL  ", false)));
 
         assertThatThrownBy(() -> perguntaService.salvarEmCaso(caso.getIdCaso(), comTextoDuplicado))
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
                 .hasMessage("Os textos das alternativas nao podem se repetir");
 
-        pergunta_request_DTO semCorreta = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Primeira", false),
-                new alternativa_pergunta_DTO(null, "B", "Segunda", false)));
+        PerguntaRequestDTO semCorreta = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Primeira", false),
+                new AlternativaPerguntaDTO(null, "B", "Segunda", false)));
 
         assertThatThrownBy(() -> perguntaService.salvarEmCaso(caso.getIdCaso(), semCorreta))
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
@@ -583,13 +583,13 @@ class RespostaAlunoServiceTests {
 
     @Test
     void deveSalvarLoteDePerguntasEAlternativasAtomicamente() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        pergunta_request_DTO primeira = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Conduta correta 1", true),
-                new alternativa_pergunta_DTO(null, "B", "Distrator 1", false)));
-        pergunta_request_DTO segunda = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Conduta correta 2", true),
-                new alternativa_pergunta_DTO(null, "B", "Distrator 2", false)));
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        PerguntaRequestDTO primeira = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Conduta correta 1", true),
+                new AlternativaPerguntaDTO(null, "B", "Distrator 1", false)));
+        PerguntaRequestDTO segunda = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Conduta correta 2", true),
+                new AlternativaPerguntaDTO(null, "B", "Distrator 2", false)));
         primeira.setTexto("Primeira pergunta gerada");
         segunda.setTexto("Segunda pergunta gerada");
 
@@ -605,13 +605,13 @@ class RespostaAlunoServiceTests {
 
     @Test
     void loteInvalidoNaoDevePersistirNenhumaPergunta() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        pergunta_request_DTO valida = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
-        pergunta_request_DTO invalida = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Primeira", false),
-                new alternativa_pergunta_DTO(null, "B", "Segunda", false)));
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        PerguntaRequestDTO valida = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
+        PerguntaRequestDTO invalida = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Primeira", false),
+                new AlternativaPerguntaDTO(null, "B", "Segunda", false)));
 
         assertThatThrownBy(() -> perguntaService.salvarLoteEmCaso(
                 caso.getIdCaso(),
@@ -623,10 +623,10 @@ class RespostaAlunoServiceTests {
 
     @Test
     void loteDeveRevalidarStatusDoCasoAntesDePersistir() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        pergunta_request_DTO pergunta = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        PerguntaRequestDTO pergunta = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
 
         assertThatThrownBy(() -> perguntaService.salvarLoteEmCaso(
                 caso.getIdCaso(),
@@ -639,8 +639,8 @@ class RespostaAlunoServiceTests {
 
     @Test
     void loteNaoDevePersistirSeContextoMudouDuranteGeracao() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        conteudo_clinico conteudo = new conteudo_clinico();
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Tosse");
         conteudo.setContexto("Atendimento inicial");
@@ -652,9 +652,9 @@ class RespostaAlunoServiceTests {
 
         conteudo.setDiagEsperado("Diagnostico alterado");
         conteudoRepository.saveAndFlush(conteudo);
-        pergunta_request_DTO pergunta = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
+        PerguntaRequestDTO pergunta = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
 
         assertThatThrownBy(() -> perguntaService.salvarLoteEmCaso(
                 caso.getIdCaso(),
@@ -668,8 +668,8 @@ class RespostaAlunoServiceTests {
 
     @Test
     void loteNaoDevePersistirSePerguntasMudaramDuranteGeracao() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        conteudo_clinico conteudo = new conteudo_clinico();
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Tosse");
         conteudo.setContexto("Atendimento inicial");
@@ -679,15 +679,15 @@ class RespostaAlunoServiceTests {
         conteudo = conteudoRepository.saveAndFlush(conteudo);
         String fingerprint = CasoClinicoFingerprint.calcular(caso, conteudo, List.of());
 
-        pergunta_request_DTO perguntaExistente = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
+        PerguntaRequestDTO perguntaExistente = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
         perguntaExistente.setTexto("Pergunta criada durante a chamada ao provedor");
         perguntaService.salvarEmCaso(caso.getIdCaso(), perguntaExistente);
 
-        pergunta_request_DTO perguntaGerada = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
+        PerguntaRequestDTO perguntaGerada = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
         perguntaGerada.setTexto("Pergunta gerada com contexto anterior");
 
         assertThatThrownBy(() -> perguntaService.salvarLoteEmCaso(
@@ -700,14 +700,14 @@ class RespostaAlunoServiceTests {
 
         assertThat(perguntaRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
                 .singleElement()
-                .extracting(pergunta::getTexto)
+                .extracting(Pergunta::getTexto)
                 .isEqualTo("Pergunta criada durante a chamada ao provedor");
     }
 
     @Test
     void loteGeradoNaoDeveDuplicarEnunciadoJaExistente() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        conteudo_clinico conteudo = new conteudo_clinico();
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Tosse");
         conteudo.setContexto("Atendimento inicial");
@@ -717,15 +717,15 @@ class RespostaAlunoServiceTests {
         conteudo = conteudoRepository.saveAndFlush(conteudo);
         String fingerprint = CasoClinicoFingerprint.calcular(caso, conteudo, List.of());
 
-        pergunta_request_DTO perguntaExistente = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
+        PerguntaRequestDTO perguntaExistente = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
         perguntaExistente.setTexto("Qual e a melhor conduta?");
         perguntaService.salvarEmCaso(caso.getIdCaso(), perguntaExistente);
 
-        pergunta_request_DTO perguntaDuplicada = perguntaMultiplaEscolha(List.of(
-                new alternativa_pergunta_DTO(null, "A", "Correta", true),
-                new alternativa_pergunta_DTO(null, "B", "Incorreta", false)));
+        PerguntaRequestDTO perguntaDuplicada = perguntaMultiplaEscolha(List.of(
+                new AlternativaPerguntaDTO(null, "A", "Correta", true),
+                new AlternativaPerguntaDTO(null, "B", "Incorreta", false)));
         perguntaDuplicada.setTexto("  QUAL   E A MELHOR CONDUTA? ");
 
         assertThatThrownBy(() -> perguntaService.salvarLoteEmCaso(
@@ -740,9 +740,9 @@ class RespostaAlunoServiceTests {
 
     @Test
     void persistenciaDeConteudoIaDeveFazerRollbackAtomico() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
         String tituloOriginal = caso.getTitulo();
-        conteudo_clinico conteudoOriginal = new conteudo_clinico();
+        ConteudoClinico conteudoOriginal = new ConteudoClinico();
         conteudoOriginal.setCasoClinico(caso);
         conteudoOriginal.setSintomas("Tosse");
         conteudoOriginal.setContexto("Atendimento inicial");
@@ -761,7 +761,7 @@ class RespostaAlunoServiceTests {
                 List.of(),
                 casoBloqueado -> {
                     casoBloqueado.setTitulo("Titulo que deve sofrer rollback");
-                    conteudo_clinico novoConteudo = new conteudo_clinico();
+                    ConteudoClinico novoConteudo = new ConteudoClinico();
                     novoConteudo.setCasoClinico(casoBloqueado);
                     novoConteudo.setSintomas("Novo sintoma");
                     novoConteudo.setContexto("Novo contexto");
@@ -778,14 +778,14 @@ class RespostaAlunoServiceTests {
                 .isEqualTo(tituloOriginal);
         assertThat(conteudoRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
                 .singleElement()
-                .extracting(conteudo_clinico::getIdConteudo)
+                .extracting(ConteudoClinico::getIdConteudo)
                 .isEqualTo(conteudoOriginal.getIdConteudo());
     }
 
     @Test
     void persistenciaDeConteudoIaDeveRejeitarContextoAlterado() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        conteudo_clinico conteudo = new conteudo_clinico();
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Tosse");
         conteudo.setContexto("Atendimento inicial");
@@ -817,8 +817,8 @@ class RespostaAlunoServiceTests {
 
     @Test
     void persistenciaDeConteudoIaDeveDetectarAlteracaoNoSegundoPaciente() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.RASCUNHO);
-        paciente primeiroPaciente = pacienteRepository.saveAndFlush(new paciente(
+        CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
+        Paciente primeiroPaciente = pacienteRepository.saveAndFlush(new Paciente(
                 null,
                 caso,
                 "Paciente um",
@@ -828,7 +828,7 @@ class RespostaAlunoServiceTests {
                 EstadoCivil.NAO_INFORMADO,
                 "1,70 m",
                 "70 kg"));
-        paciente segundoPaciente = pacienteRepository.saveAndFlush(new paciente(
+        Paciente segundoPaciente = pacienteRepository.saveAndFlush(new Paciente(
                 null,
                 caso,
                 "Paciente dois",
@@ -838,7 +838,7 @@ class RespostaAlunoServiceTests {
                 EstadoCivil.NAO_INFORMADO,
                 "1,65 m",
                 "65 kg"));
-        List<paciente> pacientes = List.of(primeiroPaciente, segundoPaciente);
+        List<Paciente> pacientes = List.of(primeiroPaciente, segundoPaciente);
         String fingerprintAnterior = CasoClinicoFingerprint.calcular(caso, null, pacientes);
 
         segundoPaciente.setProfissao("Medico");
@@ -848,7 +848,7 @@ class RespostaAlunoServiceTests {
         assertThatThrownBy(() -> casoClinicoIaTransactionService.executarGeracao(
                 caso.getIdCaso(),
                 fingerprintAnterior,
-                pacientes.stream().map(paciente::getIdPaciente).toList(),
+                pacientes.stream().map(Paciente::getIdPaciente).toList(),
                 casoBloqueado -> {
                     executouPersistencia.set(true);
                     return null;
@@ -860,8 +860,8 @@ class RespostaAlunoServiceTests {
 
     @Test
     void casoPublicadoNaoDevePermitirAlterarSeusComponentes() {
-        casos_clinicos caso = criarCaso(StatusCasoClinico.PUBLICADO);
-        paciente paciente = pacienteRepository.saveAndFlush(new paciente(
+        CasoClinico caso = criarCaso(StatusCasoClinico.PUBLICADO);
+        Paciente paciente = pacienteRepository.saveAndFlush(new Paciente(
                 null,
                 caso,
                 "Paciente original",
@@ -871,7 +871,7 @@ class RespostaAlunoServiceTests {
                 EstadoCivil.NAO_INFORMADO,
                 "1,70 m",
                 "70 kg"));
-        paciente_DTO pacienteAtualizado = new paciente_DTO(
+        PacienteDTO pacienteAtualizado = new PacienteDTO(
                 paciente.getIdPaciente(),
                 caso.getIdCaso(),
                 "Paciente alterado",
@@ -890,7 +890,7 @@ class RespostaAlunoServiceTests {
         assertThat(pacienteRepository.findById(paciente.getIdPaciente()).orElseThrow().getNome())
                 .isEqualTo("Paciente original");
 
-        conteudo_clinico conteudo = new conteudo_clinico();
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Sintoma original");
         conteudo.setContexto("Contexto");
@@ -898,7 +898,7 @@ class RespostaAlunoServiceTests {
         conteudo.setAntecClinico("Antecedente");
         conteudo.setDiagEsperado("Diagnostico");
         conteudo = conteudoRepository.saveAndFlush(conteudo);
-        conteudo_clinico_DTO conteudoAtualizado = new conteudo_clinico_DTO(
+        ConteudoClinicoDTO conteudoAtualizado = new ConteudoClinicoDTO(
                 conteudo.getIdConteudo(),
                 caso.getIdCaso(),
                 "Sintoma alterado",
@@ -962,10 +962,10 @@ class RespostaAlunoServiceTests {
         assertThat(passwordEncoder.matches("senha123", usuarioSalvo.getSenha())).isTrue();
     }
 
-    private casos_clinicos criarCaso(StatusCasoClinico status) {
+    private CasoClinico criarCaso(StatusCasoClinico status) {
         Professor professor = professorRepository.save(new Professor(null, "Dr. Silva", "silva@email.com", "Clinica"));
 
-        casos_clinicos caso = new casos_clinicos();
+        CasoClinico caso = new CasoClinico();
         caso.setProfessor(professor);
         caso.setTitulo("Caso respiratorio");
         caso.setNivelDificuldade(NivelDificuldade.MEDIA);
@@ -979,8 +979,8 @@ class RespostaAlunoServiceTests {
         return casoRepository.save(caso);
     }
 
-    private pergunta criarPergunta(casos_clinicos caso, String gabarito) {
-        pergunta perguntaSalva = criarPerguntaSemAlternativas(caso, gabarito);
+    private Pergunta criarPergunta(CasoClinico caso, String gabarito) {
+        Pergunta perguntaSalva = criarPerguntaSemAlternativas(caso, gabarito);
         alternativaRepository.saveAll(List.of(
                 new AlternativaPergunta(null, perguntaSalva, "A", "A", "A".equals(gabarito)),
                 new AlternativaPergunta(null, perguntaSalva, "B", "B", "B".equals(gabarito)),
@@ -990,8 +990,8 @@ class RespostaAlunoServiceTests {
         return perguntaSalva;
     }
 
-    private pergunta criarPerguntaSemAlternativas(casos_clinicos caso, String gabarito) {
-        pergunta pergunta = new pergunta();
+    private Pergunta criarPerguntaSemAlternativas(CasoClinico caso, String gabarito) {
+        Pergunta pergunta = new Pergunta();
         pergunta.setCasoClinico(caso);
         pergunta.setTexto("Qual a melhor conduta?");
         pergunta.setResposta(gabarito);
@@ -1001,11 +1001,11 @@ class RespostaAlunoServiceTests {
         return perguntaRepository.save(pergunta);
     }
 
-    private pergunta criarPerguntaPorTipo(
-            casos_clinicos caso,
+    private Pergunta criarPerguntaPorTipo(
+            CasoClinico caso,
             TipoPergunta tipo,
             String gabarito) {
-        pergunta novaPergunta = new pergunta();
+        Pergunta novaPergunta = new Pergunta();
         novaPergunta.setCasoClinico(caso);
         novaPergunta.setTexto("Pergunta para " + tipo);
         novaPergunta.setResposta(gabarito);
@@ -1015,8 +1015,8 @@ class RespostaAlunoServiceTests {
         return perguntaRepository.save(novaPergunta);
     }
 
-    private pergunta_request_DTO perguntaMultiplaEscolha(List<alternativa_pergunta_DTO> alternativas) {
-        pergunta_request_DTO dto = new pergunta_request_DTO();
+    private PerguntaRequestDTO perguntaMultiplaEscolha(List<AlternativaPerguntaDTO> alternativas) {
+        PerguntaRequestDTO dto = new PerguntaRequestDTO();
         dto.setTexto("Qual a melhor conduta?");
         dto.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
         dto.setGabarito("A");
@@ -1025,7 +1025,7 @@ class RespostaAlunoServiceTests {
         return dto;
     }
 
-    private void iniciarTentativa(Aluno aluno, casos_clinicos caso) {
+    private void iniciarTentativa(Aluno aluno, CasoClinico caso) {
         casoService.buscarCompletoPublicadoPorId(caso.getIdCaso(), aluno.getIdAluno());
     }
 }

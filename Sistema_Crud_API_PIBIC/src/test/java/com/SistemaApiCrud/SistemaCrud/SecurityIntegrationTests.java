@@ -24,29 +24,29 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.AlternativaGeradaIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntaGeradaIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntasGeradasIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.AlternativaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AlternativaPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.Professor;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
-import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
+import com.SistemaApiCrud.SistemaCrud.entity.Pergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.EstadoCivil;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.Sexo;
-import com.SistemaApiCrud.SistemaCrud.repository.alternativa_pergunta_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.AlternativaPerguntaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PerguntaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ProfessorRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 import com.SistemaApiCrud.SistemaCrud.service.PerguntaAiClient;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,25 +62,25 @@ class SecurityIntegrationTests {
     private MockMvc mockMvc;
 
     @Autowired
-    private usuario_repository usuarioRepository;
+    private UsuarioRepository usuarioRepository;
 
     @Autowired
-    private professor_repository professorRepository;
+    private ProfessorRepository professorRepository;
 
     @Autowired
-    private caso_clinico_repository casoRepository;
+    private CasoClinicoRepository casoRepository;
 
     @Autowired
-    private pergunta_repository perguntaRepository;
+    private PerguntaRepository perguntaRepository;
 
     @Autowired
-    private alternativa_pergunta_repository alternativaRepository;
+    private AlternativaPerguntaRepository alternativaRepository;
 
     @Autowired
-    private conteudo_clinico_repository conteudoRepository;
+    private ConteudoClinicoRepository conteudoRepository;
 
     @Autowired
-    private paciente_repository pacienteRepository;
+    private PacienteRepository pacienteRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -200,7 +200,7 @@ class SecurityIntegrationTests {
         String token = (String) login.get("token");
         Professor professor = usuarioRepository.findByUsername("professor").orElseThrow().getProfessor();
 
-        casos_clinicos caso = new casos_clinicos();
+        CasoClinico caso = new CasoClinico();
         caso.setProfessor(professor);
         caso.setTitulo("Caso para gerar perguntas");
         caso.setNivelDificuldade(NivelDificuldade.MEDIA);
@@ -211,7 +211,7 @@ class SecurityIntegrationTests {
         caso.setStatus(StatusCasoClinico.RASCUNHO);
         caso = casoRepository.save(caso);
 
-        conteudo_clinico conteudo = new conteudo_clinico();
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Tosse e febre");
         conteudo.setContexto("Atendimento na emergencia");
@@ -253,7 +253,7 @@ class SecurityIntegrationTests {
 
         assertThat(perguntaRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
                 .singleElement()
-                .extracting(pergunta::getTexto)
+                .extracting(Pergunta::getTexto)
                 .isEqualTo("Qual e a melhor conduta inicial?");
     }
 
@@ -335,7 +335,7 @@ class SecurityIntegrationTests {
                 .orElseThrow()
                 .getProfessor();
 
-        casos_clinicos caso = new casos_clinicos();
+        CasoClinico caso = new CasoClinico();
         caso.setProfessor(professor);
         caso.setTitulo("Caso publicado para conflito");
         caso.setNivelDificuldade(NivelDificuldade.MEDIA);
@@ -373,7 +373,7 @@ class SecurityIntegrationTests {
                 .orElseThrow()
                 .getProfessor();
 
-        casos_clinicos publicado = new casos_clinicos();
+        CasoClinico publicado = new CasoClinico();
         publicado.setProfessor(professor);
         publicado.setTitulo("Caso a ser arquivado");
         publicado.setNivelDificuldade(NivelDificuldade.MEDIA);
@@ -403,7 +403,7 @@ class SecurityIntegrationTests {
                 .andExpect(jsonPath("$.detail").value(
                         "O caso clinico ainda nao esta publicado"));
 
-        casos_clinicos rascunho = new casos_clinicos();
+        CasoClinico rascunho = new CasoClinico();
         rascunho.setProfessor(professor);
         rascunho.setTitulo("Rascunho nao arquivavel");
         rascunho.setNivelDificuldade(NivelDificuldade.BAIXA);
@@ -427,7 +427,7 @@ class SecurityIntegrationTests {
     void casoDoAlunoNaoDeveExporGabaritoNemDiagnosticoEsperado() throws Exception {
         Professor professor = usuarioRepository.findByUsername("professor").orElseThrow().getProfessor();
 
-        casos_clinicos caso = new casos_clinicos();
+        CasoClinico caso = new CasoClinico();
         caso.setProfessor(professor);
         caso.setTitulo("Caso sem vazamento");
         caso.setNivelDificuldade(NivelDificuldade.MEDIA);
@@ -438,7 +438,7 @@ class SecurityIntegrationTests {
         caso.setStatus(StatusCasoClinico.PUBLICADO);
         caso = casoRepository.save(caso);
 
-        conteudo_clinico conteudo = new conteudo_clinico();
+        ConteudoClinico conteudo = new ConteudoClinico();
         conteudo.setCasoClinico(caso);
         conteudo.setSintomas("Tosse");
         conteudo.setContexto("Contexto detalhado");
@@ -447,7 +447,7 @@ class SecurityIntegrationTests {
         conteudo.setDiagEsperado("Diagnostico secreto");
         conteudoRepository.save(conteudo);
 
-        pergunta pergunta = new pergunta();
+        Pergunta pergunta = new Pergunta();
         pergunta.setCasoClinico(caso);
         pergunta.setTexto("Qual a conduta?");
         pergunta.setResposta("A");
@@ -478,7 +478,7 @@ class SecurityIntegrationTests {
         Professor outroProfessor = professorRepository.save(
                 new Professor(null, "Outro Professor", "outro@example.com", "Cirurgia"));
 
-        casos_clinicos caso = new casos_clinicos();
+        CasoClinico caso = new CasoClinico();
         caso.setProfessor(outroProfessor);
         caso.setTitulo("Caso de outro professor");
         caso.setNivelDificuldade(NivelDificuldade.MEDIA);
@@ -489,7 +489,7 @@ class SecurityIntegrationTests {
         caso.setStatus(StatusCasoClinico.RASCUNHO);
         caso = casoRepository.save(caso);
 
-        paciente paciente = pacienteRepository.save(new paciente(
+        Paciente paciente = pacienteRepository.save(new Paciente(
                 null,
                 caso,
                 "Paciente Protegido",

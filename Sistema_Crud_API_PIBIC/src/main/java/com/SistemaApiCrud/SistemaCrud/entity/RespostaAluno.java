@@ -37,11 +37,11 @@ public class RespostaAluno {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fk_id_caso", nullable = false)
-    private casos_clinicos casoClinico;
+    private CasoClinico casoClinico;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fk_id_pergunta", nullable = false)
-    private pergunta pergunta;
+    private Pergunta pergunta;
 
     @Column(name = "resposta_marcada", nullable = false, columnDefinition = "TEXT")
     private String respostaMarcada;

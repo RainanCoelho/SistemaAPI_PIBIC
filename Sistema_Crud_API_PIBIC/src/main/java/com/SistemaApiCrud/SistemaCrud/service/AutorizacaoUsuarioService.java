@@ -6,31 +6,31 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.PapelUsuario;
-import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
+import com.SistemaApiCrud.SistemaCrud.entity.Pergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.pergunta_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PerguntaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 
 @Service
 public class AutorizacaoUsuarioService {
 
-    private final usuario_repository usuarioRepository;
-    private final caso_clinico_repository casoRepository;
-    private final pergunta_repository perguntaRepository;
-    private final paciente_repository pacienteRepository;
-    private final conteudo_clinico_repository conteudoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final CasoClinicoRepository casoRepository;
+    private final PerguntaRepository perguntaRepository;
+    private final PacienteRepository pacienteRepository;
+    private final ConteudoClinicoRepository conteudoRepository;
 
     public AutorizacaoUsuarioService(
-            usuario_repository usuarioRepository,
-            caso_clinico_repository casoRepository,
-            pergunta_repository perguntaRepository,
-            paciente_repository pacienteRepository,
-            conteudo_clinico_repository conteudoRepository) {
+            UsuarioRepository usuarioRepository,
+            CasoClinicoRepository casoRepository,
+            PerguntaRepository perguntaRepository,
+            PacienteRepository pacienteRepository,
+            ConteudoClinicoRepository conteudoRepository) {
         this.usuarioRepository = usuarioRepository;
         this.casoRepository = casoRepository;
         this.perguntaRepository = perguntaRepository;
@@ -122,12 +122,12 @@ public class AutorizacaoUsuarioService {
     }
 
     public void validarAcessoCaso(Long idCaso) {
-        casos_clinicos caso = casoRepository.findById(idCaso)
+        CasoClinico caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         validarAcessoCaso(caso);
     }
 
-    public void validarAcessoCaso(casos_clinicos caso) {
+    public void validarAcessoCaso(CasoClinico caso) {
         Usuario usuario = getUsuarioAutenticado();
         if (usuario.getRole() == PapelUsuario.ADMIN) {
             return;
@@ -144,7 +144,7 @@ public class AutorizacaoUsuarioService {
     }
 
     public void validarAcessoPergunta(Long idPergunta) {
-        pergunta pergunta = perguntaRepository.findById(idPergunta)
+        Pergunta pergunta = perguntaRepository.findById(idPergunta)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pergunta nao encontrada"));
 
         if (pergunta.getCasoClinico() == null) {

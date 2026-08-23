@@ -6,9 +6,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
 
 public final class CasoClinicoFingerprint {
 
@@ -16,9 +16,9 @@ public final class CasoClinicoFingerprint {
     }
 
     public static String calcular(
-            casos_clinicos caso,
-            conteudo_clinico conteudo,
-            List<paciente> pacientes) {
+            CasoClinico caso,
+            ConteudoClinico conteudo,
+            List<Paciente> pacientes) {
         StringBuilder dados = new StringBuilder();
         adicionar(dados, caso.getIdCaso());
         adicionar(dados, caso.getProfessor() != null ? caso.getProfessor().getId() : null);
@@ -37,7 +37,7 @@ public final class CasoClinicoFingerprint {
         adicionar(dados, conteudo != null ? conteudo.getAntecClinico() : null);
         adicionar(dados, conteudo != null ? conteudo.getDiagEsperado() : null);
 
-        for (paciente paciente : pacientes) {
+        for (Paciente paciente : pacientes) {
             adicionar(dados, paciente.getIdPaciente());
             adicionar(dados, paciente.getNome());
             adicionar(dados, paciente.getIdade());

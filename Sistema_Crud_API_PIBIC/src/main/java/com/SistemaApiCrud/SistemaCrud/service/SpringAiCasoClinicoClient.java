@@ -4,7 +4,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.StructuredOutputValidationAdvisor;
 import org.springframework.stereotype.Service;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
 import com.SistemaApiCrud.SistemaCrud.exception.CapacidadeIaEsgotadaException;
 import com.SistemaApiCrud.SistemaCrud.exception.LimiteUsoIaException;

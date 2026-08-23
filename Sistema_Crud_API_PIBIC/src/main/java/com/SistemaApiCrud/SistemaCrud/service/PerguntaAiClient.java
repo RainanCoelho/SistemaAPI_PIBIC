@@ -1,6 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntasGeradasIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
 
 public interface PerguntaAiClient {
 

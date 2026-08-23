@@ -29,7 +29,7 @@ public class AlternativaPergunta {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fk_id_pergunta", nullable = false)
-    private pergunta pergunta;
+    private Pergunta pergunta;
 
     @Column(nullable = false, length = 10)
     private String letra;

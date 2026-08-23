@@ -1,6 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.CasoClinicoGeradoIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO;
 
 public interface CasoClinicoAiClient {
 

@@ -10,24 +10,24 @@ import java.text.Normalizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.SistemaApiCrud.SistemaCrud.DTO.AlternativaGeradaIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.GerarPerguntasIaRequestDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntaGeradaIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.PerguntasGeradasIaDTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.alternativa_pergunta_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_request_DTO;
-import com.SistemaApiCrud.SistemaCrud.DTO.pergunta_response_DTO;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.dto.AlternativaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.GerarPerguntasIaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.AlternativaPerguntaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
 import com.SistemaApiCrud.SistemaCrud.exception.BusinessException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
 import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.conteudo_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.paciente_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ConteudoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.PacienteRepository;
 
 @Service
 public class PerguntaIaService {
@@ -54,20 +54,20 @@ public class PerguntaIaService {
             """;
 
     private final PerguntaAiClient clienteIa;
-    private final caso_clinico_repository casoRepository;
-    private final conteudo_clinico_repository conteudoRepository;
-    private final paciente_repository pacienteRepository;
-    private final pergunta_service perguntaService;
+    private final CasoClinicoRepository casoRepository;
+    private final ConteudoClinicoRepository conteudoRepository;
+    private final PacienteRepository pacienteRepository;
+    private final PerguntaService perguntaService;
     private final PerguntaIaTransactionService transactionService;
     private final ProtecaoDadosClinicosIa protecaoDadosClinicosIa;
     private final String chaveApi;
 
     public PerguntaIaService(
             PerguntaAiClient clienteIa,
-            caso_clinico_repository casoRepository,
-            conteudo_clinico_repository conteudoRepository,
-            paciente_repository pacienteRepository,
-            pergunta_service perguntaService,
+            CasoClinicoRepository casoRepository,
+            ConteudoClinicoRepository conteudoRepository,
+            PacienteRepository pacienteRepository,
+            PerguntaService perguntaService,
             PerguntaIaTransactionService transactionService,
             ProtecaoDadosClinicosIa protecaoDadosClinicosIa,
             @Value("${spring.ai.openai.api-key:}") String chaveApi) {
@@ -81,7 +81,7 @@ public class PerguntaIaService {
         this.chaveApi = chaveApi;
     }
 
-    public List<pergunta_response_DTO> gerarPerguntas(
+    public List<PerguntaResponseDTO> gerarPerguntas(
             Long idCaso,
             GerarPerguntasIaRequestDTO requisicao) {
         if (!Boolean.TRUE.equals(requisicao.getDadosSinteticosOuDesidentificados())) {
@@ -91,15 +91,15 @@ public class PerguntaIaService {
         validarChaveConfigurada();
         validarRequisicaoPorTipo(requisicao);
 
-        casos_clinicos caso = casoRepository.findById(idCaso)
+        CasoClinico caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         CasoClinicoPolicy.validarRascunho(caso);
 
-        conteudo_clinico conteudo = conteudoRepository
+        ConteudoClinico conteudo = conteudoRepository
                 .findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Conteudo clinico nao encontrado para este caso"));
-        List<paciente> pacientes = pacienteRepository
+        List<Paciente> pacientes = pacienteRepository
                 .findByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
         String fingerprint = CasoClinicoFingerprint.calcular(caso, conteudo, pacientes);
 
@@ -112,7 +112,7 @@ public class PerguntaIaService {
         long quantidadePerguntasExistentes = perguntaService.contarPorCaso(idCaso);
         PerguntasGeradasIaDTO respostaIa = clienteIa.gerarPerguntas(INSTRUCOES_SISTEMA, contexto);
         List<PerguntaGeradaIaDTO> perguntasGeradas = validarRespostaIa(respostaIa, requisicao);
-        List<pergunta_request_DTO> perguntas = perguntasGeradas.stream()
+        List<PerguntaRequestDTO> perguntas = perguntasGeradas.stream()
                 .map(pergunta -> mapearPergunta(pergunta, requisicao.getTipo()))
                 .toList();
 
@@ -141,9 +141,9 @@ public class PerguntaIaService {
     }
 
     private String montarContexto(
-            casos_clinicos caso,
-            conteudo_clinico conteudo,
-            List<paciente> pacientes,
+            CasoClinico caso,
+            ConteudoClinico conteudo,
+            List<Paciente> pacientes,
             GerarPerguntasIaRequestDTO requisicao) {
         StringBuilder contexto = new StringBuilder();
         contexto.append("<tarefa>\nGere exatamente ")
@@ -180,7 +180,7 @@ public class PerguntaIaService {
         adicionarCampo(contexto, "diagnosticoEsperado", conteudo.getDiagEsperado());
 
         for (int indice = 0; indice < pacientes.size(); indice++) {
-            paciente paciente = pacientes.get(indice);
+            Paciente paciente = pacientes.get(indice);
             String prefixo = "paciente" + (indice + 1) + ".";
             adicionarCampo(contexto, prefixo + "idade", valorComoTexto(paciente.getIdade()));
             adicionarCampo(contexto, prefixo + "sexo", valorComoTexto(paciente.getSexo()));
@@ -369,17 +369,17 @@ public class PerguntaIaService {
         }
     }
 
-    private pergunta_request_DTO mapearPergunta(PerguntaGeradaIaDTO gerada, TipoPergunta tipo) {
-        pergunta_request_DTO pergunta = new pergunta_request_DTO();
+    private PerguntaRequestDTO mapearPergunta(PerguntaGeradaIaDTO gerada, TipoPergunta tipo) {
+        PerguntaRequestDTO pergunta = new PerguntaRequestDTO();
         pergunta.setTexto(gerada.getTexto().trim());
         pergunta.setResposta(gerada.getResposta().trim());
         pergunta.setGabarito(gerada.getGabarito().trim());
         pergunta.setTipo(tipo);
 
-        List<alternativa_pergunta_DTO> alternativas = new ArrayList<>();
+        List<AlternativaPerguntaDTO> alternativas = new ArrayList<>();
         if (tipo == TipoPergunta.MULTIPLA_ESCOLHA) {
             for (AlternativaGeradaIaDTO alternativa : gerada.getAlternativas()) {
-                alternativas.add(new alternativa_pergunta_DTO(
+                alternativas.add(new AlternativaPerguntaDTO(
                         null,
                         alternativa.getLetra().trim().toUpperCase(Locale.ROOT),
                         alternativa.getTexto().trim(),

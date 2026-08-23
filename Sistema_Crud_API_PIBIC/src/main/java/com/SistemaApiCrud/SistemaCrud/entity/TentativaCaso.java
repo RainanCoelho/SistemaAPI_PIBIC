@@ -39,7 +39,7 @@ public class TentativaCaso {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "fk_id_caso", nullable = false)
-    private casos_clinicos casoClinico;
+    private CasoClinico casoClinico;
 
     @Column(name = "data_inicio", nullable = false)
     private Instant dataInicio;

@@ -20,15 +20,15 @@ import com.SistemaApiCrud.SistemaCrud.entity.RespostaAluno;
 import com.SistemaApiCrud.SistemaCrud.entity.RevisaoRespostaAluno;
 import com.SistemaApiCrud.SistemaCrud.entity.TentativaCaso;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
-import com.SistemaApiCrud.SistemaCrud.entity.conteudo_clinico;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
+import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.StatusCasoClinico;
-import com.SistemaApiCrud.SistemaCrud.entity.paciente;
-import com.SistemaApiCrud.SistemaCrud.entity.pergunta;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.professor_repository;
-import com.SistemaApiCrud.SistemaCrud.service.caso_clinico_service;
+import com.SistemaApiCrud.SistemaCrud.entity.Paciente;
+import com.SistemaApiCrud.SistemaCrud.entity.Pergunta;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.ProfessorRepository;
+import com.SistemaApiCrud.SistemaCrud.service.CasoClinicoService;
 
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.FetchType;
@@ -45,13 +45,13 @@ class JpaFetchPlanTests {
     private EntityManagerFactory entityManagerFactory;
 
     @Autowired
-    private professor_repository professorRepository;
+    private ProfessorRepository professorRepository;
 
     @Autowired
-    private caso_clinico_repository casoRepository;
+    private CasoClinicoRepository casoRepository;
 
     @Autowired
-    private caso_clinico_service casoService;
+    private CasoClinicoService casoService;
 
     @Test
     void todasAsAssociacoesDeEntidadeDevemSerLazy() throws Exception {
@@ -59,10 +59,10 @@ class JpaFetchPlanTests {
                 new Associacao(AlternativaPergunta.class, "pergunta", true),
                 new Associacao(AuditoriaGeracaoIa.class, "casoClinico", true),
                 new Associacao(AuditoriaGeracaoIa.class, "usuario", true),
-                new Associacao(casos_clinicos.class, "professor", true),
-                new Associacao(conteudo_clinico.class, "casoClinico", true),
-                new Associacao(paciente.class, "casoClinico", true),
-                new Associacao(pergunta.class, "casoClinico", true),
+                new Associacao(CasoClinico.class, "professor", true),
+                new Associacao(ConteudoClinico.class, "casoClinico", true),
+                new Associacao(Paciente.class, "casoClinico", true),
+                new Associacao(Pergunta.class, "casoClinico", true),
                 new Associacao(RespostaAluno.class, "aluno", true),
                 new Associacao(RespostaAluno.class, "casoClinico", true),
                 new Associacao(RespostaAluno.class, "pergunta", true),
@@ -96,7 +96,7 @@ class JpaFetchPlanTests {
                 "Clinica"));
 
         for (int indice = 1; indice <= 3; indice++) {
-            casos_clinicos caso = new casos_clinicos();
+            CasoClinico caso = new CasoClinico();
             caso.setProfessor(professor);
             caso.setTitulo("Caso para validar fetch " + indice);
             caso.setNivelDificuldade(NivelDificuldade.MEDIA);

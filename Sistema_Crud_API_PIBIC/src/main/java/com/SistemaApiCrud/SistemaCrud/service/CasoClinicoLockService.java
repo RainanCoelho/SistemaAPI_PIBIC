@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
-import com.SistemaApiCrud.SistemaCrud.repository.caso_clinico_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -18,12 +18,12 @@ import jakarta.persistence.LockModeType;
 @Service
 public class CasoClinicoLockService {
 
-    private final caso_clinico_repository casoRepository;
+    private final CasoClinicoRepository casoRepository;
     private final EntityManager entityManager;
     private final AutorizacaoUsuarioService autorizacaoService;
 
     public CasoClinicoLockService(
-            caso_clinico_repository casoRepository,
+            CasoClinicoRepository casoRepository,
             EntityManager entityManager,
             AutorizacaoUsuarioService autorizacaoService) {
         this.casoRepository = casoRepository;
@@ -32,18 +32,18 @@ public class CasoClinicoLockService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public casos_clinicos bloquearRascunho(Long idCaso) {
+    public CasoClinico bloquearRascunho(Long idCaso) {
         return bloquearRascunhos(java.util.List.of(idCaso)).get(idCaso);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public Map<Long, casos_clinicos> bloquearRascunhos(Collection<Long> idsCasos) {
-        Map<Long, casos_clinicos> casos = new LinkedHashMap<>();
+    public Map<Long, CasoClinico> bloquearRascunhos(Collection<Long> idsCasos) {
+        Map<Long, CasoClinico> casos = new LinkedHashMap<>();
         idsCasos.stream()
                 .distinct()
                 .sorted()
                 .forEach(idCaso -> {
-                    casos_clinicos caso = casoRepository.findByIdForUpdate(idCaso)
+                    CasoClinico caso = casoRepository.findByIdForUpdate(idCaso)
                             .orElseThrow(() -> new RecursoNaoEncontradoException(
                                     "Caso clinico nao encontrado"));
                     entityManager.refresh(caso, LockModeType.PESSIMISTIC_WRITE);

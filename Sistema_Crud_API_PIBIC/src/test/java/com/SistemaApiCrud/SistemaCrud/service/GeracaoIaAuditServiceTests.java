@@ -16,16 +16,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.SistemaApiCrud.SistemaCrud.entity.AuditoriaGeracaoIa;
 import com.SistemaApiCrud.SistemaCrud.entity.Usuario;
-import com.SistemaApiCrud.SistemaCrud.entity.casos_clinicos;
+import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.OperacaoGeracaoIa;
-import com.SistemaApiCrud.SistemaCrud.repository.auditoria_geracao_ia_repository;
-import com.SistemaApiCrud.SistemaCrud.repository.usuario_repository;
+import com.SistemaApiCrud.SistemaCrud.repository.AuditoriaGeracaoIaRepository;
+import com.SistemaApiCrud.SistemaCrud.repository.UsuarioRepository;
 
 class GeracaoIaAuditServiceTests {
 
-    private final auditoria_geracao_ia_repository repository =
-            mock(auditoria_geracao_ia_repository.class);
-    private final usuario_repository usuarioRepository = mock(usuario_repository.class);
+    private final AuditoriaGeracaoIaRepository repository =
+            mock(AuditoriaGeracaoIaRepository.class);
+    private final UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
 
     @AfterEach
     void limparAutenticacao() {
@@ -37,7 +37,7 @@ class GeracaoIaAuditServiceTests {
         Usuario usuario = new Usuario();
         usuario.setId(9L);
         usuario.setUsername("professor-auditor");
-        casos_clinicos caso = new casos_clinicos();
+        CasoClinico caso = new CasoClinico();
         caso.setIdCaso(7L);
         when(usuarioRepository.findByUsername("professor-auditor"))
                 .thenReturn(Optional.of(usuario));
