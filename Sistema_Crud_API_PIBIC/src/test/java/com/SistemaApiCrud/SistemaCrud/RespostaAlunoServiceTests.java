@@ -515,6 +515,10 @@ class RespostaAlunoServiceTests {
     void naoDevePublicarCasoSemPacienteConteudoEPergunta() {
         CasoClinico caso = criarCaso(StatusCasoClinico.RASCUNHO);
 
+        assertThatThrownBy(() -> casoService.publicar(caso.getIdCaso(), 10))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
+                .hasMessage("O tempo limite deve estar entre 15 e 480 minutos");
+
         assertThatThrownBy(() -> casoService.publicar(caso.getIdCaso()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Cadastre ao menos um paciente antes de publicar o caso clinico");
@@ -548,9 +552,10 @@ class RespostaAlunoServiceTests {
                 .hasMessage("Cadastre ao menos uma pergunta antes de publicar o caso clinico");
 
         criarPergunta(caso, "A");
-        CasoClinicoResponseDTO publicado = casoService.publicar(caso.getIdCaso());
+        CasoClinicoResponseDTO publicado = casoService.publicar(caso.getIdCaso(), 90);
 
         assertThat(publicado.getStatus()).isEqualTo(StatusCasoClinico.PUBLICADO);
+        assertThat(publicado.getTempoLimiteMinutos()).isEqualTo(90);
     }
 
     @Test

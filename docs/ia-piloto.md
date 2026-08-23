@@ -105,7 +105,8 @@ Antes de cadastrar um provedor, revise os termos atuais da respectiva conta. Nã
 | `IA_MODELO` | `auto` | Permite que o gateway selecione a rota. |
 | `IA_TEMPERATURA` | `0.2` | Reduz variação e favorece consistência estrutural. |
 | `IA_MAXIMO_TOKENS_SAIDA` | `4000` | Limita o tamanho máximo solicitado para a saída da IA. |
-| `IA_TEMPO_LIMITE` | `40s` | Tempo máximo da chamada antes de responder `504`. |
+| `IA_TEMPO_LIMITE` | `30s` | Tempo máximo da chamada antes de responder `504`. |
+| `IA_IDEMPOTENCIA_TTL` | `1h` | Retenção dos metadados de uma tentativa para replay seguro. |
 | `IA_MAXIMO_TENTATIVAS_HTTP` | `0` | Evita multiplicar tentativas; o gateway já trata fallback entre provedores. |
 | `IA_LIMITE_POR_MINUTO` | `5` | Cota por usuário autenticado a cada minuto. |
 | `IA_LIMITE_POR_DIA` | `20` | Cota por usuário autenticado no dia, no fuso de São Paulo. |
@@ -129,8 +130,9 @@ Se o backend for colocado futuramente no mesmo Compose, `127.0.0.1` passará a a
 | Chave/base de IA ausente ou inválida na configuração | `503 Service Unavailable` | Corrija as variáveis do backend. |
 | Capacidade gratuita temporariamente esgotada nos provedores | `503 Service Unavailable` | Aguarde o cabeçalho `Retry-After` antes de tentar novamente. |
 | Chamada acima de `IA_TEMPO_LIMITE` | `504 Gateway Timeout` | Tente depois; avalie provedor, tamanho do contexto e latência. |
+| Mesma `Idempotency-Key` ainda em processamento | `409 Conflict` + `Retry-After` | Aguarde e repita com a mesma chave; não crie outra tentativa concorrente. |
 
-Os contadores por minuto e por dia ficam em memória e são apropriados para uma única instância no piloto. Eles reiniciam quando a aplicação reinicia e não são compartilhados entre réplicas. Antes de escalar horizontalmente, migre as cotas para um armazenamento compartilhado e adicione métricas e alertas.
+Os contadores por minuto e por dia e o ledger de idempotência ficam no PostgreSQL. O ledger retém apenas hashes, estado e IDs de resultado; a V19 remove a antiga coluna que duplicava respostas clínicas. A chave expira após `IA_IDEMPOTENCIA_TTL` (1 hora por padrão) e sua reutilização é protegida por bloqueio transacional. O limite de simultaneidade é local ao processo; antes de escalar horizontalmente, coordene esse limite entre réplicas e mantenha métricas e alertas.
 
 O limite de simultaneidade é global para o processo. Quando todas as vagas estão ocupadas, a API responde imediatamente com `429` e `Retry-After: 1`.
 
@@ -181,5 +183,5 @@ A integração do backend usa o contrato compatível com OpenAI, portanto a troc
 2. defina nova `IA_URL_BASE`, `IA_CHAVE_API` e `IA_MODELO`;
 3. execute testes de contrato e qualidade dos casos/perguntas;
 4. substitua os limites em memória por controle distribuído;
-5. adicione observabilidade sem registrar prompts, respostas ou segredos;
+5. mantenha alertas sobre a telemetria já registrada, sem registrar prompts, respostas ou segredos;
 6. conclua a avaliação jurídica e de segurança antes de aceitar dados reais.

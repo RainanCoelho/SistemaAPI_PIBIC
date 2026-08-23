@@ -134,11 +134,26 @@ public class CasoClinicoService {
 
     @Transactional
     public CasoClinicoResponseDTO publicar(Long id) {
+        return publicarInterno(id, null);
+    }
+
+    @Transactional
+    public CasoClinicoResponseDTO publicar(Long id, Integer tempoLimiteMinutos) {
+        return publicarInterno(id, tempoLimiteMinutos);
+    }
+
+    private CasoClinicoResponseDTO publicarInterno(Long id, Integer tempoLimiteMinutos) {
+        if (tempoLimiteMinutos != null && (tempoLimiteMinutos < 15 || tempoLimiteMinutos > 480)) {
+            throw new BadRequestException("O tempo limite deve estar entre 15 e 480 minutos");
+        }
         CasoClinico caso = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         autorizacaoService.validarAcessoCaso(caso);
         CasoClinicoPolicy.validarRascunho(caso);
         validarCasoPublicavel(caso);
+        if (tempoLimiteMinutos != null) {
+            caso.setTempoLimiteMinutos(tempoLimiteMinutos);
+        }
         caso.setStatus(StatusCasoClinico.PUBLICADO);
         return mapper.toResponse(repository.save(caso));
     }

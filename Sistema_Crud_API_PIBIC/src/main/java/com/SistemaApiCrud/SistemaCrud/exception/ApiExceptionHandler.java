@@ -71,6 +71,31 @@ public class ApiExceptionHandler {
                 requisicao);
     }
 
+    @ExceptionHandler(ConflitoIdempotenciaException.class)
+    public ResponseEntity<ApiProblem> tratarConflitoIdempotencia(
+            ConflitoIdempotenciaException ex,
+            HttpServletRequest requisicao) {
+        return problemas.responder(
+                HttpStatus.CONFLICT,
+                "conflito-idempotencia",
+                "Conflito de idempotencia",
+                ex.getMessage(),
+                requisicao);
+    }
+
+    @ExceptionHandler(SolicitacaoIaEmAndamentoException.class)
+    public ResponseEntity<ApiProblem> tratarSolicitacaoIaEmAndamento(
+            SolicitacaoIaEmAndamentoException ex,
+            HttpServletRequest requisicao) {
+        return comRetryAfter(
+                HttpStatus.CONFLICT,
+                "solicitacao-ia-em-andamento",
+                "Solicitacao de IA em andamento",
+                ex.getMessage(),
+                ex.getRetryAfterSeconds(),
+                requisicao);
+    }
+
     @ExceptionHandler(AiProviderException.class)
     public ResponseEntity<ApiProblem> tratarFalhaDoProvedorIa(
             AiProviderException ex,

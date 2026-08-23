@@ -102,9 +102,10 @@ public class ServicoCasoClinicoIa {
         String contextoIa = utilizouIa
                 ? montarPromptGeracao(caso, requisicao, pacientesAtuais)
                 : null;
-        CasoClinicoGeradoIaDTO conteudoGerado = utilizouIa
+        RespostaIaComMetricas<CasoClinicoGeradoIaDTO> respostaIa = utilizouIa
                 ? gerarConteudoComPrompt(contextoIa)
-                : new CasoClinicoGeradoIaDTO();
+                : RespostaIaComMetricas.semMetricas(new CasoClinicoGeradoIaDTO());
+        CasoClinicoGeradoIaDTO conteudoGerado = respostaIa.entidade();
         if (utilizouIa) {
             validarGeracao(conteudoGerado, caso, requisicao);
         }
@@ -129,7 +130,8 @@ public class ServicoCasoClinicoIa {
                                 contextoIa,
                                 conteudoGerado,
                                 "conteudo:" + conteudoSalvo.getIdConteudo(),
-                                1);
+                                1,
+                                respostaIa);
                     }
                     return resposta;
                 });
@@ -156,7 +158,8 @@ public class ServicoCasoClinicoIa {
                 conteudoAtual,
                 pacientesAtuais,
                 requisicao);
-        CasoClinicoGeradoIaDTO conteudoGerado = gerarConteudoComPrompt(contextoIa);
+        RespostaIaComMetricas<CasoClinicoGeradoIaDTO> respostaIa = gerarConteudoComPrompt(contextoIa);
+        CasoClinicoGeradoIaDTO conteudoGerado = respostaIa.entidade();
         validarAjusteGerado(conteudoGerado);
 
         return servicoTransacional.executarAjuste(
@@ -184,12 +187,13 @@ public class ServicoCasoClinicoIa {
                             contextoIa,
                             conteudoGerado,
                             "conteudo:" + conteudoSalvo.getIdConteudo(),
-                            1);
+                            1,
+                            respostaIa);
                     return resposta;
                 });
     }
 
-    private CasoClinicoGeradoIaDTO gerarConteudoComPrompt(String contexto) {
+    private RespostaIaComMetricas<CasoClinicoGeradoIaDTO> gerarConteudoComPrompt(String contexto) {
         if (chaveApi == null
                 || chaveApi.isBlank()
                 || CHAVE_NAO_CONFIGURADA.equals(chaveApi)) {
@@ -200,7 +204,11 @@ public class ServicoCasoClinicoIa {
             throw new BusinessException(
                     "O caso clinico excede o limite de contexto permitido para a IA");
         }
-        return clienteIa.gerarConteudo(INSTRUCOES_SISTEMA, contexto);
+        RespostaIaComMetricas<CasoClinicoGeradoIaDTO> resposta = clienteIa
+                .gerarConteudoComMetricas(INSTRUCOES_SISTEMA, contexto);
+        return resposta != null
+                ? resposta
+                : RespostaIaComMetricas.semMetricas(clienteIa.gerarConteudo(INSTRUCOES_SISTEMA, contexto));
     }
 
     private String montarPromptGeracao(

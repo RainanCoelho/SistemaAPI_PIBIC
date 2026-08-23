@@ -17,5 +17,9 @@ public record AuditoriaGeracaoIaDTO(
         String referenciaResultado,
         Integer quantidadeItens,
         Boolean dadosDesidentificadosConfirmados,
+        Long duracaoProvedorMs,
+        Integer tokensEntrada,
+        Integer tokensSaida,
+        String correlationId,
         Instant dataGeracao) {
 }

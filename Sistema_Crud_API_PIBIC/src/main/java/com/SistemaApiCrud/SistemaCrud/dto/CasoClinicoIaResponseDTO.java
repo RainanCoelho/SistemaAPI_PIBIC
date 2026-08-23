@@ -18,4 +18,5 @@ public class CasoClinicoIaResponseDTO {
     private String examClinico;
     private String antecClinico;
     private String diagEsperado;
+    private CasoClinicoCompletoDTO completo;
 }

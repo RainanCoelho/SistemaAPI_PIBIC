@@ -1,7 +1,11 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
+import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.StructuredOutputValidationAdvisor;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 
 import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO;
@@ -22,7 +26,7 @@ public class SpringAiCasoClinicoClient implements CasoClinicoAiClient {
         this.clienteConversa = construtorClienteConversa
                 .defaultAdvisors(StructuredOutputValidationAdvisor.builder()
                         .outputType(CasoClinicoGeradoIaDTO.class)
-                        .maxRepeatAttempts(1)
+                        .maxRepeatAttempts(0)
                         .build())
                 .build();
         this.controleUsoIa = controleUsoIa;
@@ -30,17 +34,28 @@ public class SpringAiCasoClinicoClient implements CasoClinicoAiClient {
 
     @Override
     public CasoClinicoGeradoIaDTO gerarConteudo(String instrucoesSistema, String contexto) {
+        return gerarConteudoComMetricas(instrucoesSistema, contexto).entidade();
+    }
+
+    @Override
+    public RespostaIaComMetricas<CasoClinicoGeradoIaDTO> gerarConteudoComMetricas(
+            String instrucoesSistema,
+            String contexto) {
         try {
-            CasoClinicoGeradoIaDTO conteudo = controleUsoIa.executar(() -> clienteConversa.prompt()
+            long inicio = System.nanoTime();
+            ResponseEntity<ChatResponse, CasoClinicoGeradoIaDTO> resposta = controleUsoIa.executar(() -> clienteConversa
+                    .prompt()
                     .system(instrucoesSistema)
                     .user(contexto)
                     .call()
-                    .entity(CasoClinicoGeradoIaDTO.class));
+                    .responseEntity(CasoClinicoGeradoIaDTO.class));
+            long duracaoMs = (System.nanoTime() - inicio) / 1_000_000L;
+            CasoClinicoGeradoIaDTO conteudo = resposta == null ? null : resposta.entity();
 
             if (conteudo == null) {
                 throw new AiProviderException("A IA retornou um conteudo em formato invalido");
             }
-            return conteudo;
+            return comMetricas(conteudo, resposta == null ? null : resposta.response(), duracaoMs);
         } catch (AiProviderException
                 | CapacidadeIaEsgotadaException
                 | LimiteUsoIaException
@@ -60,5 +75,19 @@ public class SpringAiCasoClinicoClient implements CasoClinicoAiClient {
             }
             throw new AiProviderException("Nao foi possivel gerar conteudo com o provedor de IA", falha);
         }
+    }
+
+    private RespostaIaComMetricas<CasoClinicoGeradoIaDTO> comMetricas(
+            CasoClinicoGeradoIaDTO conteudo,
+            ChatResponse resposta,
+            long duracaoMs) {
+        ChatResponseMetadata metadados = resposta == null ? null : resposta.getMetadata();
+        Usage uso = metadados == null ? null : metadados.getUsage();
+        return new RespostaIaComMetricas<>(
+                conteudo,
+                duracaoMs,
+                metadados == null ? null : metadados.getModel(),
+                uso == null ? null : uso.getPromptTokens(),
+                uso == null ? null : uso.getCompletionTokens());
     }
 }

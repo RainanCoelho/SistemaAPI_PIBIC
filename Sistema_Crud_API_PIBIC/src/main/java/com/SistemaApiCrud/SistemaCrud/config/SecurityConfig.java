@@ -116,8 +116,13 @@ public class SecurityConfig {
                 "Authorization",
                 "Content-Type",
                 "Accept",
-                "X-Correlation-Id"));
-        configuration.setExposedHeaders(List.of("Authorization", "X-Correlation-Id"));
+                "X-Correlation-Id",
+                "Idempotency-Key"));
+        configuration.setExposedHeaders(List.of(
+                "Authorization",
+                "X-Correlation-Id",
+                "Retry-After",
+                "Server-Timing"));
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

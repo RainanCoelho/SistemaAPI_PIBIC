@@ -82,7 +82,7 @@ class PerguntaIaServiceTests {
                 .thenReturn(List.of());
         when(aiClient.gerarPerguntas(any(), any())).thenReturn(respostaIa);
         when(transactionService.salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any()))
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any()))
                 .thenReturn(respostaEsperada);
 
         List<PerguntaResponseDTO> resposta = service.gerarPerguntas(1L, request);
@@ -108,6 +108,7 @@ class PerguntaIaServiceTests {
                 anyString(),
                 org.mockito.ArgumentMatchers.eq(0L),
                 anyString(),
+                any(),
                 any());
         List<PerguntaRequestDTO> perguntasMapeadas = perguntas.getValue();
         assertThat(perguntasMapeadas).hasSize(2);
@@ -183,7 +184,7 @@ class PerguntaIaServiceTests {
                 .hasMessage("A IA retornou uma quantidade de perguntas diferente da solicitada");
 
         verify(transactionService, never()).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -199,7 +200,7 @@ class PerguntaIaServiceTests {
                 .hasMessage("O gabarito retornado pela IA nao corresponde a alternativa correta");
 
         verify(transactionService, never()).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -216,7 +217,7 @@ class PerguntaIaServiceTests {
                 .hasMessage("A IA retornou perguntas duplicadas");
 
         verify(transactionService, never()).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -232,7 +233,7 @@ class PerguntaIaServiceTests {
                 .hasMessage("A IA deve identificar as alternativas com letras sequenciais de A ate D");
 
         verify(transactionService, never()).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -249,7 +250,7 @@ class PerguntaIaServiceTests {
                 .hasMessage("A IA retornou textos de alternativas duplicados");
 
         verify(transactionService, never()).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -270,7 +271,7 @@ class PerguntaIaServiceTests {
         when(aiClient.gerarPerguntas(any(), any()))
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
         when(transactionService.salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any()))
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any()))
                 .thenReturn(List.of(new PerguntaResponseDTO()));
 
         service.gerarPerguntas(1L, request);
@@ -282,6 +283,7 @@ class PerguntaIaServiceTests {
                 anyString(),
                 org.mockito.ArgumentMatchers.eq(0L),
                 anyString(),
+                any(),
                 any());
         PerguntaRequestDTO pergunta = (PerguntaRequestDTO) perguntas.getValue().get(0);
         assertThat(pergunta.getTipo()).isEqualTo(TipoPergunta.DISCURSIVA);
@@ -310,7 +312,7 @@ class PerguntaIaServiceTests {
                 .hasMessageContaining("VERDADEIRO ou FALSO");
 
         verify(transactionService, never()).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -330,13 +332,13 @@ class PerguntaIaServiceTests {
         when(aiClient.gerarPerguntas(any(), any()))
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
         when(transactionService.salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any()))
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any()))
                 .thenReturn(List.of(new PerguntaResponseDTO()));
 
         service.gerarPerguntas(1L, requisicao);
 
         verify(transactionService).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any());
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     private PerguntaIaService prepararCasoValido() {

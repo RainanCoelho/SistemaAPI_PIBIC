@@ -1,7 +1,11 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
+import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.StructuredOutputValidationAdvisor;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
@@ -22,7 +26,7 @@ public class SpringAiPerguntaClient implements PerguntaAiClient {
         this.clienteConversa = construtorClienteConversa
                 .defaultAdvisors(StructuredOutputValidationAdvisor.builder()
                         .outputType(PerguntasGeradasIaDTO.class)
-                        .maxRepeatAttempts(1)
+                        .maxRepeatAttempts(0)
                         .build())
                 .build();
         this.controleUsoIa = controleUsoIa;
@@ -30,17 +34,28 @@ public class SpringAiPerguntaClient implements PerguntaAiClient {
 
     @Override
     public PerguntasGeradasIaDTO gerarPerguntas(String instrucoesSistema, String contexto) {
+        return gerarPerguntasComMetricas(instrucoesSistema, contexto).entidade();
+    }
+
+    @Override
+    public RespostaIaComMetricas<PerguntasGeradasIaDTO> gerarPerguntasComMetricas(
+            String instrucoesSistema,
+            String contexto) {
         try {
-            PerguntasGeradasIaDTO perguntas = controleUsoIa.executar(() -> clienteConversa.prompt()
+            long inicio = System.nanoTime();
+            ResponseEntity<ChatResponse, PerguntasGeradasIaDTO> resposta = controleUsoIa.executar(() -> clienteConversa
+                    .prompt()
                     .system(instrucoesSistema)
                     .user(contexto)
                     .call()
-                    .entity(PerguntasGeradasIaDTO.class));
+                    .responseEntity(PerguntasGeradasIaDTO.class));
+            long duracaoMs = (System.nanoTime() - inicio) / 1_000_000L;
+            PerguntasGeradasIaDTO perguntas = resposta == null ? null : resposta.entity();
 
             if (perguntas == null) {
                 throw new AiProviderException("A IA retornou perguntas em formato invalido");
             }
-            return perguntas;
+            return comMetricas(perguntas, resposta == null ? null : resposta.response(), duracaoMs);
         } catch (AiProviderException
                 | CapacidadeIaEsgotadaException
                 | LimiteUsoIaException
@@ -60,5 +75,19 @@ public class SpringAiPerguntaClient implements PerguntaAiClient {
             }
             throw new AiProviderException("Nao foi possivel gerar perguntas com o provedor de IA", falha);
         }
+    }
+
+    private RespostaIaComMetricas<PerguntasGeradasIaDTO> comMetricas(
+            PerguntasGeradasIaDTO perguntas,
+            ChatResponse resposta,
+            long duracaoMs) {
+        ChatResponseMetadata metadados = resposta == null ? null : resposta.getMetadata();
+        Usage uso = metadados == null ? null : metadados.getUsage();
+        return new RespostaIaComMetricas<>(
+                perguntas,
+                duracaoMs,
+                metadados == null ? null : metadados.getModel(),
+                uso == null ? null : uso.getPromptTokens(),
+                uso == null ? null : uso.getCompletionTokens());
     }
 }

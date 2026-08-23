@@ -25,6 +25,7 @@ import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.PublicarCasoRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.RevisarRespostaRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.RevisaoRespostaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.RespostaAlunoDTO;
@@ -115,9 +116,12 @@ public class CasoClinicoController {
     }
 
     @PatchMapping("/{id}/publicar")
-    public ResponseEntity<CasoClinicoResponseDTO> publicar(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<CasoClinicoResponseDTO> publicar(
+            @PathVariable @Min(1) Long id,
+            @RequestBody(required = false) @Valid PublicarCasoRequestDTO configuracao) {
         autorizacaoService.validarAcessoCaso(id);
-        return ResponseEntity.ok(service.publicar(id));
+        Integer tempoLimite = configuracao == null ? null : configuracao.getTempoLimiteMinutos();
+        return ResponseEntity.ok(service.publicar(id, tempoLimite));
     }
 
     @PatchMapping("/{id}/arquivar")

@@ -20,14 +20,17 @@ public class PerguntaIaTransactionService {
     private final PerguntaService perguntaService;
     private final CasoClinicoRepository casoRepository;
     private final GeracaoIaAuditService auditService;
+    private final IdempotenciaGeracaoIaStore idempotenciaStore;
 
     public PerguntaIaTransactionService(
             PerguntaService perguntaService,
             CasoClinicoRepository casoRepository,
-            GeracaoIaAuditService auditService) {
+            GeracaoIaAuditService auditService,
+            IdempotenciaGeracaoIaStore idempotenciaStore) {
         this.perguntaService = perguntaService;
         this.casoRepository = casoRepository;
         this.auditService = auditService;
+        this.idempotenciaStore = idempotenciaStore;
     }
 
     @Transactional
@@ -37,7 +40,8 @@ public class PerguntaIaTransactionService {
             String fingerprint,
             long quantidadePerguntasExistentes,
             String contexto,
-            PerguntasGeradasIaDTO saidaIa) {
+            PerguntasGeradasIaDTO saidaIa,
+            RespostaIaComMetricas<PerguntasGeradasIaDTO> metricas) {
         List<PerguntaResponseDTO> respostas = perguntaService.salvarLoteEmCaso(
                 idCaso,
                 perguntas,
@@ -54,7 +58,15 @@ public class PerguntaIaTransactionService {
                 contexto,
                 saidaIa,
                 "perguntas:" + referencias,
-                respostas.size());
+                respostas.size(),
+                metricas);
+        Long idSolicitacao = ContextoIdempotenciaGeracaoIa.idAtual();
+        if (idSolicitacao != null) {
+            idempotenciaStore.concluirNaTransacaoAtual(
+                    idSolicitacao,
+                    201,
+                    respostas.stream().map(PerguntaResponseDTO::getId).toList());
+        }
         return respostas;
     }
 }

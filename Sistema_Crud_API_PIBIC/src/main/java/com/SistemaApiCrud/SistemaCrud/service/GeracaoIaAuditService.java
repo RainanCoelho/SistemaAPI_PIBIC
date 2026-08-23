@@ -15,6 +15,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.SistemaApiCrud.SistemaCrud.dto.AuditoriaGeracaoIaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AuditoriaGeracaoIa;
@@ -28,6 +31,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class GeracaoIaAuditService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(GeracaoIaAuditService.class);
 
     private final AuditoriaGeracaoIaRepository repository;
     private final UsuarioRepository usuarioRepository;
@@ -55,21 +60,55 @@ public class GeracaoIaAuditService {
             Object saida,
             String referenciaResultado,
             int quantidadeItens) {
+        registrar(
+                caso,
+                operacao,
+                versaoPrompt,
+                contexto,
+                saida,
+                referenciaResultado,
+                quantidadeItens,
+                null);
+    }
+
+    @Transactional
+    public void registrar(
+            CasoClinico caso,
+            OperacaoGeracaoIa operacao,
+            String versaoPrompt,
+            String contexto,
+            Object saida,
+            String referenciaResultado,
+            int quantidadeItens,
+            RespostaIaComMetricas<?> metricas) {
         Usuario usuario = usuarioAutenticado();
         AuditoriaGeracaoIa auditoria = new AuditoriaGeracaoIa();
         auditoria.setCasoClinico(caso);
         auditoria.setUsuario(usuario);
         auditoria.setOperacao(operacao);
         auditoria.setProvedor(provedor);
-        auditoria.setModelo(modelo);
+        auditoria.setModelo(modeloEfetivo(metricas));
         auditoria.setVersaoPrompt(versaoPrompt);
         auditoria.setHashContexto(calcularHash(contexto));
         auditoria.setHashSaida(calcularHash(serializar(saida)));
         auditoria.setReferenciaResultado(referenciaResultado);
         auditoria.setQuantidadeItens(quantidadeItens);
         auditoria.setDadosDesidentificadosConfirmados(true);
+        auditoria.setDuracaoProvedorMs(duracao(metricas));
+        auditoria.setTokensEntrada(tokensEntrada(metricas));
+        auditoria.setTokensSaida(tokensSaida(metricas));
+        auditoria.setCorrelationId(correlationId());
         auditoria.setDataGeracao(Instant.now().truncatedTo(ChronoUnit.MICROS));
         repository.save(auditoria);
+        LOG.info(
+                "geracao_ia_concluida operacao={} casoId={} correlationId={} duracaoProvedorMs={} modelo={} tokensEntrada={} tokensSaida={}",
+                operacao,
+                caso.getIdCaso(),
+                auditoria.getCorrelationId(),
+                auditoria.getDuracaoProvedorMs(),
+                auditoria.getModelo(),
+                auditoria.getTokensEntrada(),
+                auditoria.getTokensSaida());
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +176,36 @@ public class GeracaoIaAuditService {
                 auditoria.getReferenciaResultado(),
                 auditoria.getQuantidadeItens(),
                 auditoria.getDadosDesidentificadosConfirmados(),
+                auditoria.getDuracaoProvedorMs(),
+                auditoria.getTokensEntrada(),
+                auditoria.getTokensSaida(),
+                auditoria.getCorrelationId(),
                 auditoria.getDataGeracao());
+    }
+
+    private String modeloEfetivo(RespostaIaComMetricas<?> metricas) {
+        if (metricas == null || metricas.modeloEfetivo() == null || metricas.modeloEfetivo().isBlank()) {
+            return modelo;
+        }
+        return limitar(metricas.modeloEfetivo(), 150);
+    }
+
+    private Long duracao(RespostaIaComMetricas<?> metricas) {
+        return metricas == null || metricas.duracaoProvedorMs() <= 0
+                ? null
+                : metricas.duracaoProvedorMs();
+    }
+
+    private Integer tokensEntrada(RespostaIaComMetricas<?> metricas) {
+        return metricas == null ? null : metricas.tokensEntrada();
+    }
+
+    private Integer tokensSaida(RespostaIaComMetricas<?> metricas) {
+        return metricas == null ? null : metricas.tokensSaida();
+    }
+
+    private String correlationId() {
+        String valor = MDC.get("correlationId");
+        return valor == null || valor.isBlank() ? null : limitar(valor, 64);
     }
 }

@@ -67,7 +67,7 @@ class LegacyAlternativesMigrationTests {
             assertThat(colunasDaTabela(jdbc, "CASOS_CLINICOS"))
                     .contains("NIVEL_DIFICULDADE")
                     .doesNotContain("DIFICULDADE");
-            assertThat(ultimaVersao(jdbc)).isEqualTo("15");
+            assertThat(ultimaVersao(jdbc)).isEqualTo("19");
         }
     }
 
@@ -118,7 +118,7 @@ class LegacyAlternativesMigrationTests {
             assertThat(jdbc.queryForObject(
                     "SELECT nivel_dificuldade FROM casos_clinicos WHERE id_caso = 200",
                     String.class)).isEqualTo("MEDIA");
-            assertThat(ultimaVersao(jdbc)).isEqualTo("15");
+            assertThat(ultimaVersao(jdbc)).isEqualTo("19");
         }
     }
 

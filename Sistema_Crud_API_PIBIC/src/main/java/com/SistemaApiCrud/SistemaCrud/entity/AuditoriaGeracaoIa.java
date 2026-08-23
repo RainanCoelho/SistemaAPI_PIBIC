@@ -66,6 +66,18 @@ public class AuditoriaGeracaoIa {
     @Column(name = "dados_desidentificados_confirmados", nullable = false)
     private Boolean dadosDesidentificadosConfirmados;
 
+    @Column(name = "duracao_provedor_ms")
+    private Long duracaoProvedorMs;
+
+    @Column(name = "tokens_entrada")
+    private Integer tokensEntrada;
+
+    @Column(name = "tokens_saida")
+    private Integer tokensSaida;
+
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
+
     @Column(name = "data_geracao", nullable = false)
     private Instant dataGeracao;
 }

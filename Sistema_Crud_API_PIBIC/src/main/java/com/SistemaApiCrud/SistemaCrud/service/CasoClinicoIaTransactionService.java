@@ -20,14 +20,17 @@ public class CasoClinicoIaTransactionService {
     private final CasoClinicoLockService casoLockService;
     private final ConteudoClinicoRepository conteudoRepository;
     private final PacienteRepository pacienteRepository;
+    private final IdempotenciaGeracaoIaStore idempotenciaStore;
 
     public CasoClinicoIaTransactionService(
             CasoClinicoLockService casoLockService,
             ConteudoClinicoRepository conteudoRepository,
-            PacienteRepository pacienteRepository) {
+            PacienteRepository pacienteRepository,
+            IdempotenciaGeracaoIaStore idempotenciaStore) {
         this.casoLockService = casoLockService;
         this.conteudoRepository = conteudoRepository;
         this.pacienteRepository = pacienteRepository;
+        this.idempotenciaStore = idempotenciaStore;
     }
 
     @Transactional
@@ -39,7 +42,7 @@ public class CasoClinicoIaTransactionService {
         bloquearPacientesEsperados(idCaso, idsPacientesEsperados);
         CasoClinico caso = casoLockService.bloquearRascunho(idCaso);
         validarContextoInalterado(caso, fingerprintEsperado);
-        return operacao.apply(caso);
+        return concluirIdempotencia(operacao.apply(caso));
     }
 
     @Transactional
@@ -71,7 +74,7 @@ public class CasoClinicoIaTransactionService {
                     "Um novo conteudo clinico foi criado durante o ajuste; tente novamente");
         }
 
-        return operacao.apply(caso, conteudo);
+        return concluirIdempotencia(operacao.apply(caso, conteudo));
     }
 
     private void bloquearPacientesEsperados(
@@ -114,5 +117,13 @@ public class CasoClinicoIaTransactionService {
 
     private ConflitoEstadoException contextoAlterado(String mensagem) {
         return new ConflitoEstadoException(mensagem);
+    }
+
+    private <T> T concluirIdempotencia(T resposta) {
+        Long idSolicitacao = ContextoIdempotenciaGeracaoIa.idAtual();
+        if (idSolicitacao != null && resposta instanceof com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoIaResponseDTO dto) {
+            idempotenciaStore.concluirNaTransacaoAtual(idSolicitacao, 200, List.of(dto.getIdConteudo()));
+        }
+        return resposta;
     }
 }

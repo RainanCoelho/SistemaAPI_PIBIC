@@ -38,7 +38,8 @@ Professores podem gerar perguntas para um caso clínico em rascunho com `POST /c
   "quantidade": 5,
   "tipo": "MULTIPLA_ESCOLHA",
   "quantidadeAlternativas": 4,
-  "instrucoesAdicionais": "Priorize raciocínio diagnóstico e conduta inicial."
+  "instrucoesAdicionais": "Priorize raciocínio diagnóstico e conduta inicial.",
+  "dadosSinteticosOuDesidentificados": true
 }
 ```
 
@@ -85,11 +86,14 @@ As opções e o procedimento operacional completo estão em [docs/ia-piloto.md](
 - Cada usuário autenticado pode fazer, por padrão, até 5 chamadas de IA por minuto e 20 por dia; há no máximo 3 chamadas simultâneas no processo.
 - Um limite excedido responde com `429 Too Many Requests` e o cabeçalho `Retry-After`, em segundos.
 - Quando os provedores gratuitos esgotam temporariamente a capacidade, a API responde com `503 Service Unavailable` e `Retry-After`.
-- Uma chamada de IA que exceda 40 segundos responde com `504 Gateway Timeout`.
+- Uma chamada de IA que exceda 30 segundos responde com `504 Gateway Timeout`.
+- Geração, ajuste e perguntas aceitam `Idempotency-Key` UUID. Uma tentativa concluída é reproduzida sem chamar novamente o provedor; uma tentativa ainda em andamento responde com `409` e `Retry-After`.
+- O ledger guarda somente hashes, estado e identificadores de resultado. A V19 remove a antiga coluna que duplicava respostas clínicas. A chave expira após `IA_IDEMPOTENCIA_TTL` (1 hora por padrão) e é reutilizada com bloqueio transacional.
+- A auditoria registra duração do provedor, modelo efetivo, tokens quando informados e o ID de correlação, sem duplicar prompt ou saída clínica.
 - Corpos de requisição maiores que 1 MiB respondem com `413 Content Too Large`.
-- Os limites podem ser ajustados pelas variáveis `IA_LIMITE_POR_MINUTO`, `IA_LIMITE_POR_DIA`, `IA_MAXIMO_SIMULTANEAS`, `IA_TEMPO_LIMITE` e `HTTP_LIMITE_CORPO_BYTES`.
+- Os limites podem ser ajustados pelas variáveis `IA_LIMITE_POR_MINUTO`, `IA_LIMITE_POR_DIA`, `IA_MAXIMO_SIMULTANEAS`, `IA_TEMPO_LIMITE`, `IA_IDEMPOTENCIA_TTL` e `HTTP_LIMITE_CORPO_BYTES`.
 
-Os limites por usuário são mantidos em memória e atendem ao piloto em uma única instância. Eles reiniciam com a aplicação e não são compartilhados entre réplicas; uma implantação pública deve usar controle distribuído.
+As cotas por usuário são persistidas no PostgreSQL. O limite de chamadas simultâneas continua local a cada processo; antes de escalar horizontalmente, ele deve ser coordenado entre réplicas. O ledger de idempotência também fica no PostgreSQL e evita repetir uma mesma tentativa mesmo após perda da resposta HTTP, sem duplicar conteúdo clínico.
 
 ## Dados clínicos e revisão humana
 

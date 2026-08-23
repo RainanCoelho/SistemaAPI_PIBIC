@@ -110,7 +110,13 @@ public class PerguntaIaService {
         }
 
         long quantidadePerguntasExistentes = perguntaService.contarPorCaso(idCaso);
-        PerguntasGeradasIaDTO respostaIa = clienteIa.gerarPerguntas(INSTRUCOES_SISTEMA, contexto);
+        RespostaIaComMetricas<PerguntasGeradasIaDTO> respostaComMetricas = clienteIa
+                .gerarPerguntasComMetricas(INSTRUCOES_SISTEMA, contexto);
+        if (respostaComMetricas == null) {
+            respostaComMetricas = RespostaIaComMetricas.semMetricas(
+                    clienteIa.gerarPerguntas(INSTRUCOES_SISTEMA, contexto));
+        }
+        PerguntasGeradasIaDTO respostaIa = respostaComMetricas.entidade();
         List<PerguntaGeradaIaDTO> perguntasGeradas = validarRespostaIa(respostaIa, requisicao);
         List<PerguntaRequestDTO> perguntas = perguntasGeradas.stream()
                 .map(pergunta -> mapearPergunta(pergunta, requisicao.getTipo()))
@@ -122,7 +128,8 @@ public class PerguntaIaService {
                 fingerprint,
                 quantidadePerguntasExistentes,
                 contexto,
-                respostaIa);
+                respostaIa,
+                respostaComMetricas);
     }
 
     private void validarChaveConfigurada() {
