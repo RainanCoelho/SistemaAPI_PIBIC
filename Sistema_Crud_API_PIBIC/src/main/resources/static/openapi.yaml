@@ -1059,6 +1059,34 @@ paths:
           $ref: "#/components/responses/AcessoNegado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
+  /casos/{id}/respostas/{idResposta}/revisoes/pagina:
+    get:
+      summary: Lista de forma paginada o historico imutavel de revisoes de uma resposta
+      parameters:
+        - $ref: "#/components/parameters/id"
+        - name: idResposta
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sort"
+      responses:
+        "200":
+          description: Pagina de revisoes em ordem cronologica
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaRevisaoResposta"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "403":
+          $ref: "#/components/responses/AcessoNegado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
   /casos/{casoId}/perguntas:
     get:
       summary: Lista perguntas de um caso
@@ -2121,6 +2149,15 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/RespostaAluno"
+    PaginaRevisaoResposta:
+      allOf:
+        - $ref: "#/components/schemas/PaginaBase"
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: "#/components/schemas/RevisaoResposta"
     ResultadoCaso:
       type: object
       properties:

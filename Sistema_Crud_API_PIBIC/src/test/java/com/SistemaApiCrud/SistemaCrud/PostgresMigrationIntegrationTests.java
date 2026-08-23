@@ -72,10 +72,14 @@ class PostgresMigrationIntegrationTests {
         assertThat(banco)
                 .startsWith("sistemacrud_")
                 .endsWith("test");
-        assertThat(versao).isEqualTo("14");
+        assertThat(versao).isEqualTo("15");
         assertThat(indices).contains(
                 "idx_alternativa_pergunta_pergunta_letra",
+                "idx_caso_professor_data",
+                "idx_caso_status_data",
                 "idx_conteudo_caso_recente",
+                "idx_paciente_caso_id",
+                "idx_pergunta_caso_id",
                 "idx_resposta_caso",
                 "idx_resposta_aluno_data",
                 "idx_revisao_resposta_data",

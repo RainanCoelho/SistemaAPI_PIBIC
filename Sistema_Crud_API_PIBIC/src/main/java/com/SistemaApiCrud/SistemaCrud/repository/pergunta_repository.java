@@ -1,5 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,10 @@ import jakarta.persistence.LockModeType;
 public interface pergunta_repository extends JpaRepository<pergunta, Long> {
 
     List<pergunta> findByCasoClinicoIdCaso(Long idCaso);
+
+    List<pergunta> findByCasoClinicoIdCasoAndIdIn(
+            Long idCaso,
+            Collection<Long> idsPerguntas);
 
     boolean existsByCasoClinicoIdCaso(Long idCaso);
 

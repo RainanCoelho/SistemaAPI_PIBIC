@@ -94,8 +94,13 @@ public class resposta_aluno_service {
         if (repository.existsByAlunoIdAlunoAndCasoClinicoIdCaso(idAluno, idCaso)) {
             throw new BusinessException("O aluno ja respondeu este caso clinico");
         }
-        List<pergunta> perguntasDoCaso = perguntaRepository.findByCasoClinicoIdCaso(idCaso);
-        validarRespostasCompletas(perguntasDoCaso, request);
+        Set<Long> idsRecebidos = validarRespostasCompletas(idCaso, request);
+        List<pergunta> perguntasDoCaso = perguntaRepository
+                .findByCasoClinicoIdCasoAndIdIn(idCaso, idsRecebidos);
+        if (perguntasDoCaso.size() != idsRecebidos.size()) {
+            throw new BadRequestException(
+                    "Todas as perguntas do caso devem ser respondidas exatamente uma vez");
+        }
         Map<Long, pergunta> perguntasPorId = perguntasDoCaso.stream()
                 .collect(Collectors.toMap(pergunta::getId, Function.identity()));
         Map<Long, List<AlternativaPergunta>> alternativasPorPergunta =
@@ -116,10 +121,11 @@ public class resposta_aluno_service {
         return montarResultado(idAluno, idCaso, respostasSalvas);
     }
 
-    private void validarRespostasCompletas(
-            List<pergunta> perguntasDoCaso,
+    private Set<Long> validarRespostasCompletas(
+            Long idCaso,
             responder_caso_request_DTO request) {
-        if (perguntasDoCaso.isEmpty()) {
+        long quantidadePerguntas = perguntaRepository.countByCasoClinicoIdCaso(idCaso);
+        if (quantidadePerguntas == 0) {
             throw new BusinessException("O caso clinico nao possui perguntas");
         }
 
@@ -132,13 +138,10 @@ public class resposta_aluno_service {
             throw new BadRequestException("Cada pergunta deve ser respondida uma unica vez");
         }
 
-        Set<Long> idsEsperados = perguntasDoCaso.stream()
-                .map(pergunta::getId)
-                .collect(Collectors.toSet());
-
-        if (!idsRecebidos.equals(idsEsperados)) {
+        if (idsRecebidos.size() != quantidadePerguntas) {
             throw new BadRequestException("Todas as perguntas do caso devem ser respondidas exatamente uma vez");
         }
+        return idsRecebidos;
     }
 
     public historico_aluno_DTO buscarHistorico(Long idAluno, Pageable pageable) {
@@ -261,14 +264,31 @@ public class resposta_aluno_service {
     public List<RevisaoRespostaDTO> listarHistoricoRevisoes(
             Long idCaso,
             Long idResposta) {
+        RespostaAluno resposta = buscarRespostaDoCaso(idCaso, idResposta);
+        return revisaoRepository
+                .findByRespostaIdOrderByVersaoRevisaoAsc(resposta.getId())
+                .stream()
+                .map(this::paraRevisaoDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<RevisaoRespostaDTO> listarHistoricoRevisoesPaginado(
+            Long idCaso,
+            Long idResposta,
+            Pageable paginacao) {
+        RespostaAluno resposta = buscarRespostaDoCaso(idCaso, idResposta);
+        return revisaoRepository
+                .findByRespostaIdOrderByVersaoRevisaoAsc(resposta.getId(), paginacao)
+                .map(this::paraRevisaoDTO);
+    }
+
+    private RespostaAluno buscarRespostaDoCaso(Long idCaso, Long idResposta) {
         RespostaAluno resposta = repository.findById(idResposta)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Resposta do aluno nao encontrada"));
         validarRespostaDoCaso(idCaso, resposta);
-        return revisaoRepository.findByRespostaIdOrderByVersaoRevisaoAsc(idResposta)
-                .stream()
-                .map(this::paraRevisaoDTO)
-                .toList();
+        return resposta;
     }
 
     private void validarRespostaDoCaso(Long idCaso, RespostaAluno resposta) {

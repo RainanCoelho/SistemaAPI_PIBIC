@@ -2,6 +2,7 @@ package com.SistemaApiCrud.SistemaCrud.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -55,7 +56,7 @@ public class paciente {
 	    @Column(name = "id_paciente")
 	    private Long idPaciente;
 
-	    @ManyToOne
+	    @ManyToOne(fetch = FetchType.LAZY, optional = false)
 	    @JoinColumn(name = "fk_id_caso", nullable = false)
 	    private casos_clinicos casoClinico;
 

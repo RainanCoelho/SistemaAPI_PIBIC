@@ -193,6 +193,19 @@ class RespostaAlunoServiceTests {
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
                 .hasMessage("Cada pergunta deve ser respondida uma unica vez");
 
+        casos_clinicos outroCaso = criarCaso(StatusCasoClinico.PUBLICADO);
+        pergunta perguntaDeOutroCaso = criarPergunta(outroCaso, "A");
+        responder_caso_request_DTO comPerguntaDeOutroCaso = new responder_caso_request_DTO(List.of(
+                new resposta_pergunta_request_DTO(primeira.getId(), "A"),
+                new resposta_pergunta_request_DTO(perguntaDeOutroCaso.getId(), "A")));
+
+        assertThatThrownBy(() -> respostaService.responderCaso(
+                aluno.getIdAluno(),
+                caso.getIdCaso(),
+                comPerguntaDeOutroCaso))
+                .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.BadRequestException.class)
+                .hasMessage("Todas as perguntas do caso devem ser respondidas exatamente uma vez");
+
         assertThat(segunda.getId()).isNotNull();
     }
 
@@ -420,9 +433,17 @@ class RespostaAlunoServiceTests {
                 idRevisor);
         assertThat(revisaoCorrigida.correta()).isFalse();
         assertThat(revisaoCorrigida.versaoRevisao()).isEqualTo(2L);
-        assertThat(respostaService.listarHistoricoRevisoes(caso.getIdCaso(), idResposta))
+        assertThat(respostaService.listarHistoricoRevisoes(
+                caso.getIdCaso(),
+                idResposta))
                 .extracting(revisao -> revisao.correta())
                 .containsExactly(true, false);
+        assertThat(respostaService.listarHistoricoRevisoesPaginado(
+                caso.getIdCaso(),
+                idResposta,
+                PageRequest.of(0, 1)).getContent())
+                .extracting(revisao -> revisao.correta())
+                .containsExactly(true);
     }
 
     @Test

@@ -156,6 +156,18 @@ public class caso_clinico_controller {
         return servicoRespostaAluno.listarHistoricoRevisoes(id, idResposta);
     }
 
+    @GetMapping("/{id}/respostas/{idResposta}/revisoes/pagina")
+    public Page<RevisaoRespostaDTO> listarHistoricoRevisoesPaginado(
+            @PathVariable @Min(1) Long id,
+            @PathVariable @Min(1) Long idResposta,
+            @PageableDefault(size = 20, sort = "versaoRevisao") Pageable paginacao) {
+        autorizacaoService.validarAcessoCaso(id);
+        return servicoRespostaAluno.listarHistoricoRevisoesPaginado(
+                id,
+                idResposta,
+                paginacao);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable @Min(1) Long id) {
         autorizacaoService.validarAcessoCaso(id);
