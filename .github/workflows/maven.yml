@@ -1,4 +1,4 @@
-name: Maven Tests
+name: Maven Verification
 
 on:
   push:
@@ -7,6 +7,13 @@ on:
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   dependency-review:
@@ -19,8 +26,9 @@ jobs:
       - name: Dependency review
         uses: actions/dependency-review-action@v5
 
-  test:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -37,9 +45,9 @@ jobs:
           java-version: "25"
           cache: maven
 
-      - name: Run tests
+      - name: Verify migrations, tests and quality gates
         env:
           RUN_POSTGRES_TESTS: "true"
         run: |
           chmod +x mvnw
-          ./mvnw clean test
+          ./mvnw --batch-mode --no-transfer-progress clean verify

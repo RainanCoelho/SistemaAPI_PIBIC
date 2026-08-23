@@ -72,7 +72,7 @@ public class FiltroLimiteCorpoRequisicao extends OncePerRequestFilter {
             HttpServletRequest requisicao,
             HttpServletResponse resposta) throws IOException {
         problemas.escrever(
-                HttpStatus.PAYLOAD_TOO_LARGE,
+                HttpStatus.CONTENT_TOO_LARGE,
                 "corpo-requisicao-excedido",
                 "Corpo da requisicao excedido",
                 "O corpo da requisicao excede o limite permitido",

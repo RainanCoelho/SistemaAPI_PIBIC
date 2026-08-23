@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -342,7 +343,8 @@ public class RespostaAlunoService {
         respostaAluno.setCorreta(compararResposta(
                 pergunta,
                 respostaRequest.getRespostaMarcada(),
-                alternativasPorPergunta.getOrDefault(pergunta.getId(), List.of())));
+                alternativasPorPergunta.getOrDefault(pergunta.getId(), List.of()))
+                .orElse(null));
 
         return respostaAluno;
     }
@@ -359,23 +361,23 @@ public class RespostaAlunoService {
                 .collect(Collectors.groupingBy(alternativa -> alternativa.getPergunta().getId()));
     }
 
-    private Boolean compararResposta(
+    private Optional<Boolean> compararResposta(
             Pergunta pergunta,
             String respostaMarcada,
             List<AlternativaPergunta> alternativas) {
         TipoPergunta tipo = pergunta.getTipo();
         if (tipo == null) {
-            return false;
+            return Optional.of(false);
         }
 
         return switch (tipo) {
             case MULTIPLA_ESCOLHA ->
-                compararMultiplaEscolha(pergunta, respostaMarcada, alternativas);
+                Optional.of(compararMultiplaEscolha(pergunta, respostaMarcada, alternativas));
             case VERDADEIRO_FALSO ->
-                compararVerdadeiroOuFalso(pergunta, respostaMarcada);
+                Optional.of(compararVerdadeiroOuFalso(pergunta, respostaMarcada));
             case DIAGNOSTICO ->
-                compararDiagnostico(pergunta, respostaMarcada);
-            case DISCURSIVA, CONDUTA_CLINICA -> null;
+                Optional.of(compararDiagnostico(pergunta, respostaMarcada));
+            case DISCURSIVA, CONDUTA_CLINICA -> Optional.empty();
         };
     }
 

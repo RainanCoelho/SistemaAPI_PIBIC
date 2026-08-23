@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!--
+        Estes componentes validam configuracoes de seguranca no construtor e falham
+        durante o bootstrap. Eles nao implementam finalizadores nem publicam a
+        instancia parcialmente construida.
+    -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+        <Or>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.config.FiltroLimiteCorpoRequisicao"/>
+                <Method
+                        params="com.SistemaApiCrud.SistemaCrud.exception.ApiProblemSupport,int"
+                        returns="void"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIa"/>
+                <Or>
+                    <Method
+                            params="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,int,int,long,java.time.Duration"
+                            returns="void"/>
+                    <Method
+                            params="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,int,int,java.time.Duration,java.time.Duration,java.time.Clock"
+                            returns="void"/>
+                </Or>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.JwtService"/>
+                <Method
+                        params="java.lang.String,long,java.lang.String,java.lang.String"
+                        returns="void"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.LoginAttemptService"/>
+                <Or>
+                    <Method
+                            params="com.SistemaApiCrud.SistemaCrud.service.LoginAttemptStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,long"
+                            returns="void"/>
+                    <Method
+                            params="com.SistemaApiCrud.SistemaCrud.service.LoginAttemptStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,long,java.time.Clock"
+                            returns="void"/>
+                </Or>
+            </And>
+        </Or>
+    </Match>
+
+    <!-- Dependencias gerenciadas pelo Spring sao colaboradores, nao estado exposto. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.controller.AuthenticationController"/>
+                <Field name="loginAttemptService"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.CasoClinicoLockService"/>
+                <Field name="entityManager"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore"/>
+                <Field name="jdbcTemplate"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.LoginAttemptStore"/>
+                <Field name="jdbcTemplate"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.PerguntaService"/>
+                <Field name="alternativaRepository"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.RespostaAlunoService"/>
+                <Field name="alternativaRepository"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.SpringAiCasoClinicoClient"/>
+                <Field name="controleUsoIa"/>
+            </And>
+            <And>
+                <Class name="com.SistemaApiCrud.SistemaCrud.service.SpringAiPerguntaClient"/>
+                <Field name="controleUsoIa"/>
+            </And>
+        </Or>
+    </Match>
+
+    <!-- A associacao JPA preserva identidade; uma copia quebraria o ciclo de persistencia. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Class name="com.SistemaApiCrud.SistemaCrud.entity.Paciente"/>
+        <Field name="casoClinico"/>
+    </Match>
+
+    <!-- O DTO precisa ser mutavel para desserializacao estruturada pelo Jackson. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Class name="com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO"/>
+        <Field name="paciente"/>
+    </Match>
+</FindBugsFilter>
