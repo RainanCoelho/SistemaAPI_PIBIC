@@ -43,7 +43,21 @@ Professores podem gerar perguntas para um caso clínico em rascunho com `POST /c
 }
 ```
 
-Os campos são opcionais. Os valores padrão são 5 perguntas, tipo `MULTIPLA_ESCOLHA` e 4 alternativas; os limites aceitos são de 1 a 10 perguntas, de 2 a 5 alternativas e até 2.000 caracteres nas instruções adicionais. Em caso de sucesso, a API responde com `201 Created` e a lista de perguntas persistidas.
+Para gerar um lote variado em uma única chamada, substitua os campos do modo único por uma distribuição de 2 a 5 tipos:
+
+```json
+{
+  "distribuicao": [
+    { "tipo": "MULTIPLA_ESCOLHA", "quantidade": 2, "quantidadeAlternativas": 4 },
+    { "tipo": "VERDADEIRO_FALSO", "quantidade": 1 },
+    { "tipo": "DIAGNOSTICO", "quantidade": 1 }
+  ],
+  "instrucoesAdicionais": "Priorize raciocínio diagnóstico e conduta inicial.",
+  "dadosSinteticosOuDesidentificados": true
+}
+```
+
+No modo único, os valores padrão são 5 perguntas, tipo `MULTIPLA_ESCOLHA` e 4 alternativas. Na distribuição, cada tipo pode aparecer uma vez e a soma deve ficar entre 1 e 10 perguntas. A quantidade de alternativas é aceita somente para `MULTIPLA_ESCOLHA`. As instruções adicionais aceitam até 2.000 caracteres. Em caso de sucesso, a API responde com `201 Created` e a lista de perguntas persistidas.
 
 ## Revisão humana das respostas
 

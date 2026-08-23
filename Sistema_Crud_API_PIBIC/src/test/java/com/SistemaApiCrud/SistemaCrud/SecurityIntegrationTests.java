@@ -258,6 +258,86 @@ class SecurityIntegrationTests {
     }
 
     @Test
+    void professorDeveGerarDistribuicaoVariadaMesmoComCamposLegadosNulos() throws Exception {
+        Map<String, Object> login = login("professor", "professor123");
+        String token = (String) login.get("token");
+        Professor professor = usuarioRepository.findByUsername("professor").orElseThrow().getProfessor();
+
+        CasoClinico caso = new CasoClinico();
+        caso.setProfessor(professor);
+        caso.setTitulo("Caso para perguntas variadas");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
+        caso.setDisciplina("Clinica");
+        caso.setAreaSaude("Medicina");
+        caso.setEstilo("Perguntas variadas");
+        caso.setEspecialidade("Pneumologia");
+        caso.setStatus(StatusCasoClinico.RASCUNHO);
+        caso = casoRepository.save(caso);
+
+        ConteudoClinico conteudo = new ConteudoClinico();
+        conteudo.setCasoClinico(caso);
+        conteudo.setSintomas("Tosse, febre e dispneia");
+        conteudo.setContexto("Atendimento na emergencia");
+        conteudo.setExamClinico("Crepitacoes pulmonares");
+        conteudo.setAntecClinico("Sem comorbidades");
+        conteudo.setDiagEsperado("Pneumonia comunitaria");
+        conteudoRepository.save(conteudo);
+
+        when(perguntaAiClient.gerarPerguntas(any(), any()))
+                .thenReturn(new PerguntasGeradasIaDTO(java.util.List.of(
+                        new PerguntaGeradaIaDTO(
+                                TipoPergunta.MULTIPLA_ESCOLHA,
+                                "Qual achado sustenta o diagnostico?",
+                                "A febre e as crepitacoes sustentam infeccao pulmonar.",
+                                "A",
+                                java.util.List.of(
+                                        new AlternativaGeradaIaDTO("A", "Febre e crepitacoes", true),
+                                        new AlternativaGeradaIaDTO("B", "Ausencia de sintomas", false))),
+                        new PerguntaGeradaIaDTO(
+                                TipoPergunta.DIAGNOSTICO,
+                                "Qual e o diagnostico mais provavel?",
+                                "O conjunto de sinais e sintomas e compativel com pneumonia.",
+                                "Pneumonia comunitaria|Pneumonia adquirida na comunidade",
+                                java.util.List.of()))));
+
+        mockMvc.perform(post("/casos/" + caso.getIdCaso() + "/ia/perguntas/gerar")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .header("Idempotency-Key", "11111111-1111-4111-8111-111111111111")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "quantidade": null,
+                                  "tipo": null,
+                                  "quantidadeAlternativas": null,
+                                  "distribuicao": [
+                                    {
+                                      "tipo": "MULTIPLA_ESCOLHA",
+                                      "quantidade": 1,
+                                      "quantidadeAlternativas": 2
+                                    },
+                                    {
+                                      "tipo": "DIAGNOSTICO",
+                                      "quantidade": 1
+                                    }
+                                  ],
+                                  "dadosSinteticosOuDesidentificados": true
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].tipo").value("MULTIPLA_ESCOLHA"))
+                .andExpect(jsonPath("$[0].alternativas.length()").value(2))
+                .andExpect(jsonPath("$[1].tipo").value("DIAGNOSTICO"))
+                .andExpect(jsonPath("$[1].alternativas.length()").value(0));
+
+        assertThat(perguntaRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
+                .extracting(Pergunta::getTipo)
+                .containsExactlyInAnyOrder(
+                        TipoPergunta.MULTIPLA_ESCOLHA,
+                        TipoPergunta.DIAGNOSTICO);
+    }
+
+    @Test
     void alunoNaoPodeAdministrarPacientesOuConteudos() throws Exception {
         String token = (String) login("aluno", "aluno123").get("token");
 
@@ -354,7 +434,7 @@ class SecurityIntegrationTests {
                                   "texto": "Qual e o diagnostico?",
                                   "resposta": "Resposta discursiva",
                                   "tipo": "DISCURSIVA",
-                                  "gabarito": "Resposta esperada"
+                                  "gabarito": "REVISAO_MANUAL"
                                 }
                                 """))
                 .andExpect(status().isConflict())

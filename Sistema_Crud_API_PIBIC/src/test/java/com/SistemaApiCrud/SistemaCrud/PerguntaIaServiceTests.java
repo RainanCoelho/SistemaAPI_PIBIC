@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.SistemaApiCrud.SistemaCrud.dto.AlternativaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.DistribuicaoPerguntaIaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.GerarPerguntasIaRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaGeradaIaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
@@ -341,6 +342,80 @@ class PerguntaIaServiceTests {
                 anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void deveGerarDistribuicaoVariadaEmUmaUnicaChamada() {
+        PerguntaIaService service = prepararCasoValido();
+        GerarPerguntasIaRequestDTO requisicao = requisicaoVariada();
+        PerguntaGeradaIaDTO multiplaEscolha = perguntaValida("mista");
+        multiplaEscolha.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
+        PerguntaGeradaIaDTO diagnostico = new PerguntaGeradaIaDTO(
+                TipoPergunta.DIAGNOSTICO,
+                "Qual e o diagnostico mais provavel?",
+                "Os achados sustentam pneumonia adquirida na comunidade.",
+                "Pneumonia adquirida na comunidade|Pneumonia comunitaria",
+                List.of());
+        when(aiClient.gerarPerguntas(any(), any()))
+                .thenReturn(new PerguntasGeradasIaDTO(List.of(multiplaEscolha, diagnostico)));
+        when(transactionService.salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any()))
+                .thenReturn(List.of(new PerguntaResponseDTO(), new PerguntaResponseDTO()));
+
+        service.gerarPerguntas(1L, requisicao);
+
+        ArgumentCaptor<String> contexto = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<List> perguntas = ArgumentCaptor.forClass(List.class);
+        verify(aiClient).gerarPerguntas(anyString(), contexto.capture());
+        verify(transactionService).salvarComAuditoria(
+                org.mockito.ArgumentMatchers.eq(1L),
+                perguntas.capture(),
+                anyString(),
+                org.mockito.ArgumentMatchers.eq(0L),
+                anyString(),
+                any(),
+                any());
+        assertThat(contexto.getValue())
+                .contains("1 do tipo MULTIPLA_ESCOLHA")
+                .contains("1 do tipo DIAGNOSTICO")
+                .contains("informando em cada item um dos tipos solicitados");
+        assertThat((List<PerguntaRequestDTO>) perguntas.getValue())
+                .extracting(PerguntaRequestDTO::getTipo)
+                .containsExactly(TipoPergunta.MULTIPLA_ESCOLHA, TipoPergunta.DIAGNOSTICO);
+    }
+
+    @Test
+    void naoDeveAceitarTipoDuplicadoNaDistribuicaoVariada() {
+        GerarPerguntasIaRequestDTO requisicao = new GerarPerguntasIaRequestDTO();
+        requisicao.setDadosSinteticosOuDesidentificados(true);
+        requisicao.setDistribuicao(List.of(
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.DIAGNOSTICO, 1, null),
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.DIAGNOSTICO, 1, null)));
+
+        assertThatThrownBy(() -> serviceComChave().gerarPerguntas(1L, requisicao))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("nao pode repetir");
+
+        verifyNoInteractions(aiClient, casoRepository, conteudoRepository, pacienteRepository);
+    }
+
+    @Test
+    void naoDeveSalvarQuandoIaDesrespeitaDistribuicaoVariada() {
+        PerguntaIaService service = prepararCasoValido();
+        PerguntaGeradaIaDTO primeira = perguntaValida("1");
+        primeira.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
+        PerguntaGeradaIaDTO segunda = perguntaValida("2");
+        segunda.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
+        when(aiClient.gerarPerguntas(any(), any()))
+                .thenReturn(new PerguntasGeradasIaDTO(List.of(primeira, segunda)));
+
+        assertThatThrownBy(() -> service.gerarPerguntas(1L, requisicaoVariada()))
+                .isInstanceOf(AiProviderException.class)
+                .hasMessageContaining("distribuicao de tipos diferente");
+
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
+    }
+
     private PerguntaIaService prepararCasoValido() {
         PerguntaIaService service = serviceComChave();
         CasoClinico caso = caso(StatusCasoClinico.RASCUNHO);
@@ -371,6 +446,16 @@ class PerguntaIaServiceTests {
                 4,
                 "Priorize a conduta inicial",
                 true);
+    }
+
+    private GerarPerguntasIaRequestDTO requisicaoVariada() {
+        GerarPerguntasIaRequestDTO requisicao = new GerarPerguntasIaRequestDTO();
+        requisicao.setDadosSinteticosOuDesidentificados(true);
+        requisicao.setInstrucoesAdicionais("Varie o raciocinio avaliado");
+        requisicao.setDistribuicao(List.of(
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.MULTIPLA_ESCOLHA, 1, 4),
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.DIAGNOSTICO, 1, null)));
+        return requisicao;
     }
 
     private PerguntasGeradasIaDTO respostaValida(int quantidade) {

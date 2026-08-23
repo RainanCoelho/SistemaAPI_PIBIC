@@ -15,7 +15,7 @@ import com.SistemaApiCrud.SistemaCrud.repository.CasoClinicoRepository;
 @Service
 public class PerguntaIaTransactionService {
 
-    private static final String VERSAO_PROMPT = "perguntas-v2";
+    private static final String VERSAO_PROMPT = "perguntas-v3";
 
     private final PerguntaService perguntaService;
     private final CasoClinicoRepository casoRepository;

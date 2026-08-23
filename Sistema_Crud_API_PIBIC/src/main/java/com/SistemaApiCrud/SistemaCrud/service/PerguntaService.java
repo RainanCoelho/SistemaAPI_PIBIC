@@ -1,5 +1,6 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -311,13 +312,40 @@ public class PerguntaService {
     }
 
     private void validarPergunta(PerguntaRequestDTO dto) {
-        if (dto.getTipo() != TipoPergunta.MULTIPLA_ESCOLHA) {
-            return;
+        if (dto == null || dto.getTipo() == null) {
+            throw new BadRequestException("O tipo da pergunta e obrigatorio");
         }
 
+        switch (dto.getTipo()) {
+            case MULTIPLA_ESCOLHA -> validarMultiplaEscolha(dto);
+            case VERDADEIRO_FALSO -> {
+                validarSemAlternativas(dto);
+                String gabarito = normalizarSemAcentos(dto.getGabarito())
+                        .toUpperCase(Locale.ROOT);
+                if (!Set.of("VERDADEIRO", "FALSO").contains(gabarito)) {
+                    throw new BadRequestException(
+                            "O gabarito de verdadeiro ou falso deve ser VERDADEIRO ou FALSO");
+                }
+            }
+            case DIAGNOSTICO -> {
+                validarSemAlternativas(dto);
+                validarSinonimosDiagnostico(dto.getGabarito());
+            }
+            case DISCURSIVA, CONDUTA_CLINICA -> {
+                validarSemAlternativas(dto);
+                if (!"REVISAO_MANUAL".equalsIgnoreCase(textoObrigatorio(dto.getGabarito()))) {
+                    throw new BadRequestException(
+                            "Perguntas discursivas e de conduta devem usar gabarito REVISAO_MANUAL");
+                }
+            }
+        }
+    }
+
+    private void validarMultiplaEscolha(PerguntaRequestDTO dto) {
         List<AlternativaPerguntaDTO> alternativas = montarAlternativasDTO(dto);
-        if (alternativas.size() < 2) {
-            throw new BadRequestException("Perguntas de multipla escolha precisam ter pelo menos duas alternativas");
+        if (alternativas.size() < 2 || alternativas.size() > 5) {
+            throw new BadRequestException(
+                    "Perguntas de multipla escolha precisam ter entre duas e cinco alternativas");
         }
 
         Set<String> letras = new HashSet<>();
@@ -358,6 +386,51 @@ public class PerguntaService {
         if (!gabaritoApontaParaAlternativaCorreta(alternativaCorreta, dto)) {
             throw new BadRequestException("O gabarito deve corresponder a alternativa correta");
         }
+    }
+
+    private void validarSemAlternativas(PerguntaRequestDTO dto) {
+        if (!montarAlternativasDTO(dto).isEmpty()) {
+            throw new BadRequestException(
+                    "O tipo de pergunta informado nao aceita alternativas");
+        }
+    }
+
+    private void validarSinonimosDiagnostico(String gabarito) {
+        String[] sinonimos = textoObrigatorio(gabarito).split("\\|", -1);
+        if (sinonimos.length > 5) {
+            throw new BadRequestException(
+                    "O gabarito de diagnostico aceita no maximo cinco termos equivalentes");
+        }
+        Set<String> normalizados = new HashSet<>();
+        for (String sinonimo : sinonimos) {
+            String normalizado = normalizarSemAcentos(sinonimo);
+            if (normalizado.isBlank()) {
+                throw new BadRequestException(
+                        "O gabarito de diagnostico contem um termo vazio");
+            }
+            if (!normalizados.add(normalizado)) {
+                throw new BadRequestException(
+                        "O gabarito de diagnostico contem termos duplicados");
+            }
+        }
+    }
+
+    private String textoObrigatorio(String valor) {
+        if (valor == null || valor.isBlank()) {
+            throw new BadRequestException("O gabarito e obrigatorio");
+        }
+        return valor.trim();
+    }
+
+    private String normalizarSemAcentos(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        return Normalizer.normalize(valor, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
     }
 
     private List<AlternativaPergunta> salvarAlternativas(Pergunta pergunta, PerguntaRequestDTO dto) {

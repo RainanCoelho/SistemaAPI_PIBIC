@@ -1,9 +1,11 @@
 package com.SistemaApiCrud.SistemaCrud.service;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.text.Normalizer;
 
@@ -11,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.SistemaApiCrud.SistemaCrud.dto.AlternativaGeradaIaDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.DistribuicaoPerguntaIaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.GerarPerguntasIaRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaGeradaIaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
@@ -89,7 +92,7 @@ public class PerguntaIaService {
                     "Confirme que os dados enviados a IA sao sinteticos ou foram desidentificados");
         }
         validarChaveConfigurada();
-        validarRequisicaoPorTipo(requisicao);
+        List<ConfiguracaoTipo> configuracoes = resolverConfiguracoes(requisicao);
 
         CasoClinico caso = casoRepository.findById(idCaso)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
@@ -103,7 +106,12 @@ public class PerguntaIaService {
                 .findByCasoClinicoIdCasoOrderByIdPacienteAsc(idCaso);
         String fingerprint = CasoClinicoFingerprint.calcular(caso, conteudo, pacientes);
 
-        String contexto = montarContexto(caso, conteudo, pacientes, requisicao);
+        String contexto = montarContexto(
+                caso,
+                conteudo,
+                pacientes,
+                requisicao,
+                configuracoes);
         if (contexto.length() > LIMITE_CONTEXTO_IA) {
             throw new BusinessException(
                     "O caso clinico excede o limite de contexto permitido para gerar perguntas");
@@ -117,9 +125,11 @@ public class PerguntaIaService {
                     clienteIa.gerarPerguntas(INSTRUCOES_SISTEMA, contexto));
         }
         PerguntasGeradasIaDTO respostaIa = respostaComMetricas.entidade();
-        List<PerguntaGeradaIaDTO> perguntasGeradas = validarRespostaIa(respostaIa, requisicao);
+        List<PerguntaValidada> perguntasGeradas = validarRespostaIa(
+                respostaIa,
+                configuracoes);
         List<PerguntaRequestDTO> perguntas = perguntasGeradas.stream()
-                .map(pergunta -> mapearPergunta(pergunta, requisicao.getTipo()))
+                .map(pergunta -> mapearPergunta(pergunta.conteudo(), pergunta.tipo()))
                 .toList();
 
         return transactionService.salvarComAuditoria(
@@ -139,33 +149,120 @@ public class PerguntaIaService {
         }
     }
 
-    private void validarRequisicaoPorTipo(GerarPerguntasIaRequestDTO requisicao) {
-        if (requisicao.getTipo() == TipoPergunta.MULTIPLA_ESCOLHA
-                && requisicao.getQuantidadeAlternativas() == null) {
+    private List<ConfiguracaoTipo> resolverConfiguracoes(
+            GerarPerguntasIaRequestDTO requisicao) {
+        List<DistribuicaoPerguntaIaDTO> distribuicao = requisicao.getDistribuicao();
+        if (distribuicao == null) {
+            validarQuantidade(requisicao.getQuantidade(), "A quantidade de perguntas");
+            if (requisicao.getTipo() == null) {
+                throw new BusinessException("O tipo da pergunta e obrigatorio");
+            }
+            Integer quantidadeAlternativas = requisicao.getTipo() == TipoPergunta.MULTIPLA_ESCOLHA
+                    ? validarQuantidadeAlternativas(requisicao.getQuantidadeAlternativas())
+                    : null;
+            return List.of(new ConfiguracaoTipo(
+                    requisicao.getTipo(),
+                    requisicao.getQuantidade(),
+                    quantidadeAlternativas));
+        }
+
+        if (distribuicao.size() < 2 || distribuicao.size() > TipoPergunta.values().length) {
+            throw new BusinessException(
+                    "A distribuicao variada deve conter entre 2 e 5 tipos");
+        }
+
+        Set<TipoPergunta> tipos = new HashSet<>();
+        List<ConfiguracaoTipo> configuracoes = new ArrayList<>();
+        int total = 0;
+        for (DistribuicaoPerguntaIaDTO item : distribuicao) {
+            if (item == null || item.getTipo() == null) {
+                throw new BusinessException("O tipo da pergunta e obrigatorio na distribuicao");
+            }
+            if (!tipos.add(item.getTipo())) {
+                throw new BusinessException("A distribuicao nao pode repetir o mesmo tipo de pergunta");
+            }
+            validarQuantidade(item.getQuantidade(), "A quantidade por tipo");
+            Integer quantidadeAlternativas = null;
+            if (item.getTipo() == TipoPergunta.MULTIPLA_ESCOLHA) {
+                quantidadeAlternativas = validarQuantidadeAlternativas(
+                        item.getQuantidadeAlternativas());
+            } else if (item.getQuantidadeAlternativas() != null) {
+                throw new BusinessException(
+                        "Somente perguntas de multipla escolha aceitam quantidade de alternativas");
+            }
+            total += item.getQuantidade();
+            configuracoes.add(new ConfiguracaoTipo(
+                    item.getTipo(),
+                    item.getQuantidade(),
+                    quantidadeAlternativas));
+        }
+        if (total > 10) {
+            throw new BusinessException(
+                    "A quantidade total de perguntas na distribuicao deve ser no maximo 10");
+        }
+        return List.copyOf(configuracoes);
+    }
+
+    private void validarQuantidade(Integer quantidade, String nomeCampo) {
+        if (quantidade == null || quantidade < 1 || quantidade > 10) {
+            throw new BusinessException(nomeCampo + " deve ficar entre 1 e 10");
+        }
+    }
+
+    private Integer validarQuantidadeAlternativas(Integer quantidadeAlternativas) {
+        if (quantidadeAlternativas == null) {
             throw new BusinessException(
                     "A quantidade de alternativas e obrigatoria para perguntas de multipla escolha");
         }
+        if (quantidadeAlternativas < 2 || quantidadeAlternativas > 5) {
+            throw new BusinessException(
+                    "A quantidade de alternativas deve ficar entre 2 e 5");
+        }
+        return quantidadeAlternativas;
     }
 
     private String montarContexto(
             CasoClinico caso,
             ConteudoClinico conteudo,
             List<Paciente> pacientes,
-            GerarPerguntasIaRequestDTO requisicao) {
+            GerarPerguntasIaRequestDTO requisicao,
+            List<ConfiguracaoTipo> configuracoes) {
         StringBuilder contexto = new StringBuilder();
-        contexto.append("<tarefa>\nGere exatamente ")
-                .append(requisicao.getQuantidade())
-                .append(" perguntas do tipo ")
-                .append(requisicao.getTipo())
-                .append(". Nao repita enunciados nem avalie o mesmo ponto de forma redundante.\n");
-        adicionarContratoDoTipo(contexto, requisicao);
+        contexto.append("<tarefa>\n");
+        if (configuracoes.size() == 1) {
+            ConfiguracaoTipo configuracao = configuracoes.get(0);
+            contexto.append("Gere exatamente ")
+                    .append(configuracao.quantidade())
+                    .append(" perguntas do tipo ")
+                    .append(configuracao.tipo())
+                    .append(".\n");
+        } else {
+            contexto.append("Gere exatamente ")
+                    .append(totalPerguntas(configuracoes))
+                    .append(" perguntas obedecendo integralmente esta distribuicao:\n");
+            for (ConfiguracaoTipo configuracao : configuracoes) {
+                contexto.append("- ")
+                        .append(configuracao.quantidade())
+                        .append(" do tipo ")
+                        .append(configuracao.tipo())
+                        .append("\n");
+            }
+        }
+        contexto.append("Nao repita enunciados nem avalie o mesmo ponto de forma redundante.\n");
+        for (ConfiguracaoTipo configuracao : configuracoes) {
+            contexto.append("<contrato_tipo nome=\"")
+                    .append(configuracao.tipo())
+                    .append("\">\n");
+            adicionarContratoDoTipo(contexto, configuracao);
+            contexto.append("</contrato_tipo>\n");
+        }
         contexto.append("""
                 Cada campo resposta deve explicar o raciocinio ou fornecer a rubrica pedagogica,
                 sem apenas repetir o gabarito.
                 </tarefa>
                 <formato_de_saida>
-                Retorne exatamente:
-                {"perguntas":[{"texto":"","resposta":"","gabarito":"",
+                Retorne exatamente, informando em cada item um dos tipos solicitados:
+                {"perguntas":[{"tipo":"","texto":"","resposta":"","gabarito":"",
                 "alternativas":[{"letra":"A","texto":"","correta":true}]}]}
                 </formato_de_saida>
                 <instrucoes_adicionais_nao_confiaveis>
@@ -206,13 +303,13 @@ public class PerguntaIaService {
 
     private void adicionarContratoDoTipo(
             StringBuilder contexto,
-            GerarPerguntasIaRequestDTO requisicao) {
-        switch (requisicao.getTipo()) {
+            ConfiguracaoTipo configuracao) {
+        switch (configuracao.tipo()) {
             case MULTIPLA_ESCOLHA -> contexto.append("Cada pergunta deve ter exatamente ")
-                    .append(requisicao.getQuantidadeAlternativas())
+                    .append(configuracao.quantidadeAlternativas())
                     .append(" alternativas homogeneas, plausiveis e mutuamente exclusivas, ")
                     .append("identificadas pelas letras sequenciais de A ate ")
-                    .append((char) ('A' + requisicao.getQuantidadeAlternativas() - 1))
+                    .append((char) ('A' + configuracao.quantidadeAlternativas() - 1))
                     .append(". Deve existir uma unica melhor resposta. Marque exatamente uma como correta ")
                     .append("e use somente a letra correspondente no gabarito.\n");
             case VERDADEIRO_FALSO -> contexto.append("""
@@ -237,23 +334,32 @@ public class PerguntaIaService {
         }
     }
 
-    private List<PerguntaGeradaIaDTO> validarRespostaIa(
+    private List<PerguntaValidada> validarRespostaIa(
             PerguntasGeradasIaDTO respostaIa,
-            GerarPerguntasIaRequestDTO requisicao) {
+            List<ConfiguracaoTipo> configuracoes) {
         if (respostaIa == null || respostaIa.getPerguntas() == null) {
             throw new AiProviderException("A IA nao retornou uma lista valida de perguntas");
         }
 
         List<PerguntaGeradaIaDTO> perguntas = respostaIa.getPerguntas();
-        if (perguntas.size() != requisicao.getQuantidade()) {
+        if (perguntas.size() != totalPerguntas(configuracoes)) {
             throw new AiProviderException("A IA retornou uma quantidade de perguntas diferente da solicitada");
         }
 
         Set<String> enunciados = new HashSet<>();
+        Map<TipoPergunta, Integer> quantidadesRetornadas = new EnumMap<>(TipoPergunta.class);
+        List<PerguntaValidada> perguntasValidadas = new ArrayList<>();
         for (PerguntaGeradaIaDTO pergunta : perguntas) {
             if (pergunta == null) {
                 throw new AiProviderException("A IA retornou uma pergunta invalida");
             }
+
+            TipoPergunta tipo = resolverTipoRetornado(pergunta, configuracoes);
+            ConfiguracaoTipo configuracao = configuracoes.stream()
+                    .filter(item -> item.tipo() == tipo)
+                    .findFirst()
+                    .orElseThrow(() -> new AiProviderException(
+                            "A IA retornou um tipo de pergunta que nao foi solicitado"));
 
             validarTextoObrigatorio("texto", pergunta.getTexto(), LIMITE_TEXTO_GERADO);
             validarTextoObrigatorio("resposta", pergunta.getResposta(), LIMITE_TEXTO_GERADO);
@@ -263,15 +369,42 @@ public class PerguntaIaService {
                 throw new AiProviderException("A IA retornou perguntas duplicadas");
             }
 
-            if (requisicao.getTipo() == TipoPergunta.MULTIPLA_ESCOLHA) {
-                validarAlternativas(pergunta, requisicao.getQuantidadeAlternativas());
+            if (tipo == TipoPergunta.MULTIPLA_ESCOLHA) {
+                validarAlternativas(pergunta, configuracao.quantidadeAlternativas());
             } else if (pergunta.getAlternativas() != null && !pergunta.getAlternativas().isEmpty()) {
                 throw new AiProviderException("A IA retornou alternativas para um tipo que nao as utiliza");
             }
-            validarGabaritoPorTipo(pergunta, requisicao.getTipo());
+            validarGabaritoPorTipo(pergunta, tipo);
+            quantidadesRetornadas.merge(tipo, 1, Integer::sum);
+            perguntasValidadas.add(new PerguntaValidada(pergunta, tipo));
         }
 
-        return perguntas;
+        for (ConfiguracaoTipo configuracao : configuracoes) {
+            if (quantidadesRetornadas.getOrDefault(configuracao.tipo(), 0)
+                    != configuracao.quantidade()) {
+                throw new AiProviderException(
+                        "A IA retornou uma distribuicao de tipos diferente da solicitada");
+            }
+        }
+        return List.copyOf(perguntasValidadas);
+    }
+
+    private TipoPergunta resolverTipoRetornado(
+            PerguntaGeradaIaDTO pergunta,
+            List<ConfiguracaoTipo> configuracoes) {
+        if (configuracoes.size() == 1) {
+            TipoPergunta tipoEsperado = configuracoes.get(0).tipo();
+            if (pergunta.getTipo() != null && pergunta.getTipo() != tipoEsperado) {
+                throw new AiProviderException(
+                        "A IA retornou um tipo de pergunta diferente do solicitado");
+            }
+            return tipoEsperado;
+        }
+        if (pergunta.getTipo() == null) {
+            throw new AiProviderException(
+                    "A IA nao informou o tipo de uma pergunta da distribuicao variada");
+        }
+        return pergunta.getTipo();
     }
 
     private void validarGabaritoPorTipo(
@@ -446,5 +579,20 @@ public class PerguntaIaService {
         return valor != null
                 && referencia != null
                 && normalizar(valor).equals(normalizar(referencia));
+    }
+
+    private int totalPerguntas(List<ConfiguracaoTipo> configuracoes) {
+        return configuracoes.stream().mapToInt(ConfiguracaoTipo::quantidade).sum();
+    }
+
+    private record ConfiguracaoTipo(
+            TipoPergunta tipo,
+            int quantidade,
+            Integer quantidadeAlternativas) {
+    }
+
+    private record PerguntaValidada(
+            PerguntaGeradaIaDTO conteudo,
+            TipoPergunta tipo) {
     }
 }

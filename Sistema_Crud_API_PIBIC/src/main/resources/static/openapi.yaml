@@ -910,7 +910,9 @@ paths:
       description: |
         Gera e persiste perguntas para um caso com conteudo clinico criado
         manualmente ou por IA. Aceita somente dados sinteticos ou previamente
-        desidentificados. Perguntas e gabaritos exigem revisao humana.
+        desidentificados. Aceita um unico tipo pelo contrato legado ou uma
+        distribuicao de 2 a 5 tipos em uma unica chamada. Perguntas e gabaritos
+        exigem revisao humana.
       parameters:
         - $ref: "#/components/parameters/id"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -1877,7 +1879,10 @@ components:
           format: date-time
     GerarPerguntasIaRequestDTO:
       type: object
-      description: Configuracao da geracao de perguntas; a confirmacao de desidentificacao e obrigatoria.
+      description: |
+        Configuracao da geracao de perguntas; a confirmacao de desidentificacao
+        e obrigatoria. Quando distribuicao for informada, quantidade, tipo e
+        quantidadeAlternativas do modo legado sao ignorados.
       required:
         - dadosSinteticosOuDesidentificados
       properties:
@@ -1898,6 +1903,16 @@ components:
           maximum: 5
           default: 4
           example: 4
+        distribuicao:
+          type: array
+          minItems: 2
+          maxItems: 5
+          uniqueItems: true
+          description: |
+            Distribuicao para geracao variada. Cada tipo pode aparecer uma unica
+            vez e a soma das quantidades deve ser no maximo 10.
+          items:
+            $ref: "#/components/schemas/DistribuicaoPerguntaIa"
         instrucoesAdicionais:
           type: string
           maxLength: 2000
@@ -1906,6 +1921,28 @@ components:
           type: boolean
           enum: [true]
           description: Confirmacao obrigatoria de que o contexto enviado esta sintetico ou desidentificado.
+    DistribuicaoPerguntaIa:
+      type: object
+      required:
+        - tipo
+        - quantidade
+      properties:
+        tipo:
+          type: string
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+          example: DIAGNOSTICO
+        quantidade:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 1
+        quantidadeAlternativas:
+          type: integer
+          minimum: 2
+          maximum: 5
+          nullable: true
+          description: Obrigatoria e aceita somente quando o tipo for MULTIPLA_ESCOLHA.
+          example: 4
     AlternativaPergunta:
       type: object
       properties:

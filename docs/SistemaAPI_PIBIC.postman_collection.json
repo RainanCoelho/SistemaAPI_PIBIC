@@ -220,7 +220,7 @@
       "name": "Gerar perguntas com IA",
       "request": {
         "method": "POST",
-        "description": "Gera e persiste perguntas para conteúdo clínico manual ou gerado por IA. Tipos aceitos: MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO e CONDUTA_CLINICA. Revise perguntas, alternativas e gabaritos antes de publicar o caso. A API usa 502 para falha inesperada e 503 com Retry-After para capacidade temporariamente esgotada.",
+        "description": "Gera e persiste perguntas para conteúdo clínico manual ou gerado por IA. Aceita um único tipo ou uma distribuição de 2 a 5 tipos, totalizando no máximo 10 perguntas. Tipos aceitos: MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO e CONDUTA_CLINICA. Revise perguntas, alternativas e gabaritos antes de publicar o caso. A API usa 502 para falha inesperada e 503 com Retry-After para capacidade temporariamente esgotada.",
         "header": [
           {
             "key": "Content-Type",
@@ -229,7 +229,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"quantidade\": 5,\n  \"tipo\": \"MULTIPLA_ESCOLHA\",\n  \"quantidadeAlternativas\": 4,\n  \"instrucoesAdicionais\": \"Priorize raciocinio diagnostico e conduta inicial.\"\n}"
+          "raw": "{\n  \"quantidade\": 5,\n  \"tipo\": \"MULTIPLA_ESCOLHA\",\n  \"quantidadeAlternativas\": 4,\n  \"instrucoesAdicionais\": \"Priorize raciocinio diagnostico e conduta inicial.\",\n  \"dadosSinteticosOuDesidentificados\": true\n}"
         },
         "url": "{{baseUrl}}/casos/1/ia/perguntas/gerar"
       },

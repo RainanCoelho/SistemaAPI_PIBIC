@@ -151,7 +151,23 @@ Content-Type: application/json
   "quantidade": 5,
   "tipo": "MULTIPLA_ESCOLHA",
   "quantidadeAlternativas": 4,
-  "instrucoesAdicionais": "Priorize raciocinio diagnostico e conduta inicial."
+  "instrucoesAdicionais": "Priorize raciocinio diagnostico e conduta inicial.",
+  "dadosSinteticosOuDesidentificados": true
+}
+
+### Gerar uma distribuicao variada de perguntas com IA
+POST {{baseUrl}}/casos/1/ia/perguntas/gerar
+Authorization: Bearer {{loginProfessor.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "distribuicao": [
+    { "tipo": "MULTIPLA_ESCOLHA", "quantidade": 2, "quantidadeAlternativas": 4 },
+    { "tipo": "VERDADEIRO_FALSO", "quantidade": 1 },
+    { "tipo": "DIAGNOSTICO", "quantidade": 1 }
+  ],
+  "instrucoesAdicionais": "Varie os objetivos cognitivos avaliados.",
+  "dadosSinteticosOuDesidentificados": true
 }
 
 ### Criar pergunta com alternativas flexiveis
