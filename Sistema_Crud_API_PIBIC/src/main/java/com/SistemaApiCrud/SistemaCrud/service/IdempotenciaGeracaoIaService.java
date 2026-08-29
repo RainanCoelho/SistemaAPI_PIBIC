@@ -52,7 +52,8 @@ public class IdempotenciaGeracaoIaService {
             Function<SolicitacaoGeracaoIa, T> reconstruirResposta,
             Supplier<T> operacaoIa) {
         if (chaveRecebida == null) {
-            return new RespostaIdempotente<>(operacaoIa.get(), statusDeSucesso);
+            T resposta = ContextoIdempotenciaGeracaoIa.executar(null, operacaoIa);
+            return new RespostaIdempotente<>(resposta, statusDeSucesso);
         }
 
         String chave = validarChave(chaveRecebida);

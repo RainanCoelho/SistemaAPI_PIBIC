@@ -85,6 +85,48 @@ class ControleUsoIaTests {
     }
 
     @Test
+    void deveIgnorarTodasAsCotasQuandoOsLimitesEstaoDesabilitados() {
+        ControleUsoIa controle = new ControleUsoIa(
+                store,
+                identificadorProtegido,
+                1,
+                1,
+                1,
+                Duration.ofMinutes(10),
+                Duration.ofSeconds(40),
+                RELOGIO_FIXO,
+                false);
+
+        assertThat(controle.executar(() -> "primeira")).isEqualTo("primeira");
+        assertThat(controle.executar(() -> "segunda")).isEqualTo("segunda");
+        assertThat(controle.executar(() -> "terceira")).isEqualTo("terceira");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM cota_uso_ia",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM lease_uso_ia",
+                Integer.class)).isZero();
+    }
+
+    @Test
+    void deveContabilizarUmaOperacaoMesmoComMultiplasChamadasInternas() {
+        autenticar("professor-a");
+        ControleUsoIa controle = controle(1, 10, 3);
+
+        String resultado = ContextoIdempotenciaGeracaoIa.executar(91L, () -> {
+            controle.executar(() -> "primeira chamada interna");
+            return controle.executar(() -> "segunda chamada interna");
+        });
+
+        assertThat(resultado).isEqualTo("segunda chamada interna");
+        assertThat(ContextoIdempotenciaGeracaoIa.idAtual()).isNull();
+        assertThatThrownBy(() -> ContextoIdempotenciaGeracaoIa.executar(
+                92L,
+                () -> controle.executar(() -> "nova geracao")))
+                .isInstanceOf(LimiteUsoIaException.class);
+    }
+
+    @Test
     void deveManterCotaSeparadaEIdentificadorProtegidoPorUsuario() {
         ControleUsoIa controle = controle(1, 1, 3);
 

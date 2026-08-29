@@ -32,6 +32,7 @@ public class ControleUsoIa {
 
     private final ControleUsoIaStore store;
     private final IdentificadorProtegido identificadorProtegido;
+    private final boolean limitesHabilitados;
     private final int limitePorMinuto;
     private final int limitePorDia;
     private final int maximoSimultaneas;
@@ -43,11 +44,12 @@ public class ControleUsoIa {
     public ControleUsoIa(
             ControleUsoIaStore store,
             IdentificadorProtegido identificadorProtegido,
+            @Value("${app.ia.limites-habilitados:false}") boolean limitesHabilitados,
             @Value("${app.ia.limite-por-minuto:5}") int limitePorMinuto,
             @Value("${app.ia.limite-por-dia:20}") int limitePorDia,
             @Value("${app.ia.maximo-simultaneas:3}") int maximoSimultaneas,
             @Value("${app.ia.lease-minutes:10}") long leaseMinutes,
-            @Value("${spring.ai.openai.timeout:40s}") Duration tempoLimiteOperacao) {
+            @Value("${spring.ai.openai.timeout:60s}") Duration tempoLimiteOperacao) {
         this(
                 store,
                 identificadorProtegido,
@@ -56,7 +58,8 @@ public class ControleUsoIa {
                 maximoSimultaneas,
                 Duration.ofMinutes(leaseMinutes),
                 tempoLimiteOperacao,
-                Clock.system(FUSO_HORARIO_PADRAO));
+                Clock.system(FUSO_HORARIO_PADRAO),
+                limitesHabilitados);
     }
 
     ControleUsoIa(
@@ -68,6 +71,28 @@ public class ControleUsoIa {
             Duration duracaoLease,
             Duration tempoLimiteOperacao,
             Clock relogio) {
+        this(
+                store,
+                identificadorProtegido,
+                limitePorMinuto,
+                limitePorDia,
+                maximoSimultaneas,
+                duracaoLease,
+                tempoLimiteOperacao,
+                relogio,
+                true);
+    }
+
+    ControleUsoIa(
+            ControleUsoIaStore store,
+            IdentificadorProtegido identificadorProtegido,
+            int limitePorMinuto,
+            int limitePorDia,
+            int maximoSimultaneas,
+            Duration duracaoLease,
+            Duration tempoLimiteOperacao,
+            Clock relogio,
+            boolean limitesHabilitados) {
         if (limitePorMinuto < 1
                 || limitePorDia < 1
                 || maximoSimultaneas < 1
@@ -86,6 +111,7 @@ public class ControleUsoIa {
         }
         this.store = store;
         this.identificadorProtegido = identificadorProtegido;
+        this.limitesHabilitados = limitesHabilitados;
         this.limitePorMinuto = limitePorMinuto;
         this.limitePorDia = limitePorDia;
         this.maximoSimultaneas = maximoSimultaneas;
@@ -105,10 +131,15 @@ public class ControleUsoIa {
 
     @PostConstruct
     void removerCotasAntigasAoIniciar() {
-        store.removerCotasAnterioresA(relogio.instant().minus(2, ChronoUnit.DAYS));
+        if (limitesHabilitados) {
+            store.removerCotasAnterioresA(relogio.instant().minus(2, ChronoUnit.DAYS));
+        }
     }
 
     public <T> T executar(OperacaoIa<T> operacao) {
+        if (!limitesHabilitados) {
+            return operacao.executar();
+        }
         Instant agora = relogio.instant();
         String identificadorHash = identificadorProtegido.gerar(
                 "USO_IA",
@@ -121,7 +152,10 @@ public class ControleUsoIa {
         Thread renovador = iniciarRenovacaoLease(lease, concluida);
 
         try {
-            registrarUso(identificadorHash, agora);
+            if (ContextoIdempotenciaGeracaoIa.deveRegistrarUso()) {
+                registrarUso(identificadorHash, agora);
+                ContextoIdempotenciaGeracaoIa.marcarUsoRegistrado();
+            }
             return operacao.executar();
         } finally {
             concluida.set(true);

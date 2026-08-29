@@ -24,6 +24,7 @@ import com.SistemaApiCrud.SistemaCrud.dto.PerguntaGeradaIaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.RubricaPerguntaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.ConteudoClinico;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.NivelDificuldade;
@@ -266,9 +267,16 @@ class PerguntaIaServiceTests {
                 true);
         PerguntaGeradaIaDTO perguntaGerada = new PerguntaGeradaIaDTO(
                 "Explique o raciocinio diagnostico.",
-                "Rubrica: integrar achados clinicos, hipotese e justificativa.",
+                "Integrar achados clinicos, hipotese e justificativa.",
                 "REVISAO_MANUAL",
                 List.of());
+        perguntaGerada.setRubrica(new RubricaPerguntaDTO(
+                List.of("Integrar achados clinicos e hipotese"),
+                List.of("Dois pontos pela justificativa"),
+                List.of("Ignorar sinal de gravidade"),
+                List.of("Relacionar exame e diagnostico"),
+                null,
+                null));
         when(aiClient.gerarPerguntas(any(), any()))
                 .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
         when(transactionService.salvarComAuditoria(
@@ -289,6 +297,37 @@ class PerguntaIaServiceTests {
         PerguntaRequestDTO pergunta = (PerguntaRequestDTO) perguntas.getValue().get(0);
         assertThat(pergunta.getTipo()).isEqualTo(TipoPergunta.DISCURSIVA);
         assertThat(pergunta.getAlternativas()).isEmpty();
+        assertThat(pergunta.getRubrica().getErrosGraves())
+                .containsExactly("Ignorar sinal de gravidade");
+
+        ArgumentCaptor<String> contexto = ArgumentCaptor.forClass(String.class);
+        verify(aiClient).gerarPerguntas(anyString(), contexto.capture());
+        assertThat(contexto.getValue())
+                .contains("criteriosEssenciais")
+                .contains("errosGraves")
+                .contains("sem iniciar com a palavra Rubrica");
+    }
+
+    @Test
+    void naoDeveAceitarRubricaEstruturadaEmPerguntaObjetivaGerada() {
+        PerguntaIaService service = prepararCasoValido();
+        PerguntaGeradaIaDTO pergunta = perguntaValida("com-rubrica");
+        pergunta.setRubrica(new RubricaPerguntaDTO(
+                List.of("Criterio indevido"),
+                null,
+                null,
+                null,
+                null,
+                null));
+        when(aiClient.gerarPerguntas(any(), any()))
+                .thenReturn(new PerguntasGeradasIaDTO(List.of(pergunta)));
+
+        assertThatThrownBy(() -> service.gerarPerguntas(1L, request(1)))
+                .isInstanceOf(AiProviderException.class)
+                .hasMessageContaining("rubrica invalida");
+
+        verify(transactionService, never()).salvarComAuditoria(
+                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
     }
 
     @Test
@@ -317,29 +356,47 @@ class PerguntaIaServiceTests {
     }
 
     @Test
-    void deveAceitarDiagnosticoComSinonimosSeparados() {
-        PerguntaIaService service = prepararCasoValido();
+    void naoDeveGerarPerguntaDeDiagnostico() {
+        PerguntaIaService service = serviceComChave();
         GerarPerguntasIaRequestDTO requisicao = new GerarPerguntasIaRequestDTO(
                 1,
                 TipoPergunta.DIAGNOSTICO,
                 null,
                 null,
                 true);
-        PerguntaGeradaIaDTO perguntaGerada = new PerguntaGeradaIaDTO(
-                "Qual e o diagnostico mais provavel?",
-                "Os achados sustentam infeccao pulmonar adquirida na comunidade.",
-                "Pneumonia adquirida na comunidade|Pneumonia comunitaria",
-                List.of());
-        when(aiClient.gerarPerguntas(any(), any()))
-                .thenReturn(new PerguntasGeradasIaDTO(List.of(perguntaGerada)));
-        when(transactionService.salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any()))
-                .thenReturn(List.of(new PerguntaResponseDTO()));
+        assertThatThrownBy(() -> service.gerarPerguntas(1L, requisicao))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("temporariamente indisponiveis");
 
-        service.gerarPerguntas(1L, requisicao);
+        verifyNoInteractions(
+                aiClient,
+                casoRepository,
+                conteudoRepository,
+                pacienteRepository,
+                perguntaService,
+                transactionService);
+    }
 
-        verify(transactionService).salvarComAuditoria(
-                anyLong(), any(), anyString(), anyLong(), anyString(), any(), any());
+    @Test
+    void naoDeveGerarPerguntaDeCondutaClinica() {
+        GerarPerguntasIaRequestDTO requisicao = new GerarPerguntasIaRequestDTO(
+                1,
+                TipoPergunta.CONDUTA_CLINICA,
+                null,
+                null,
+                true);
+
+        assertThatThrownBy(() -> serviceComChave().gerarPerguntas(1L, requisicao))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("temporariamente indisponiveis");
+
+        verifyNoInteractions(
+                aiClient,
+                casoRepository,
+                conteudoRepository,
+                pacienteRepository,
+                perguntaService,
+                transactionService);
     }
 
     @Test
@@ -349,14 +406,21 @@ class PerguntaIaServiceTests {
         GerarPerguntasIaRequestDTO requisicao = requisicaoVariada();
         PerguntaGeradaIaDTO multiplaEscolha = perguntaValida("mista");
         multiplaEscolha.setTipo(TipoPergunta.MULTIPLA_ESCOLHA);
-        PerguntaGeradaIaDTO diagnostico = new PerguntaGeradaIaDTO(
-                TipoPergunta.DIAGNOSTICO,
-                "Qual e o diagnostico mais provavel?",
-                "Os achados sustentam pneumonia adquirida na comunidade.",
-                "Pneumonia adquirida na comunidade|Pneumonia comunitaria",
+        PerguntaGeradaIaDTO discursiva = new PerguntaGeradaIaDTO(
+                TipoPergunta.DISCURSIVA,
+                "Explique o raciocinio clinico mais importante neste caso.",
+                "A resposta deve relacionar os achados e justificar a decisao.",
+                "REVISAO_MANUAL",
                 List.of());
+        discursiva.setRubrica(new RubricaPerguntaDTO(
+                List.of("Relacionar achados e hipotese"),
+                List.of("Dois pontos pela justificativa"),
+                List.of("Ignorar sinal de gravidade"),
+                List.of("Explicar a decisao"),
+                null,
+                null));
         when(aiClient.gerarPerguntas(any(), any()))
-                .thenReturn(new PerguntasGeradasIaDTO(List.of(multiplaEscolha, diagnostico)));
+                .thenReturn(new PerguntasGeradasIaDTO(List.of(multiplaEscolha, discursiva)));
         when(transactionService.salvarComAuditoria(
                 anyLong(), any(), anyString(), anyLong(), anyString(), any(), any()))
                 .thenReturn(List.of(new PerguntaResponseDTO(), new PerguntaResponseDTO()));
@@ -376,11 +440,11 @@ class PerguntaIaServiceTests {
                 any());
         assertThat(contexto.getValue())
                 .contains("1 do tipo MULTIPLA_ESCOLHA")
-                .contains("1 do tipo DIAGNOSTICO")
+                .contains("1 do tipo DISCURSIVA")
                 .contains("informando em cada item um dos tipos solicitados");
         assertThat((List<PerguntaRequestDTO>) perguntas.getValue())
                 .extracting(PerguntaRequestDTO::getTipo)
-                .containsExactly(TipoPergunta.MULTIPLA_ESCOLHA, TipoPergunta.DIAGNOSTICO);
+                .containsExactly(TipoPergunta.MULTIPLA_ESCOLHA, TipoPergunta.DISCURSIVA);
     }
 
     @Test
@@ -388,8 +452,8 @@ class PerguntaIaServiceTests {
         GerarPerguntasIaRequestDTO requisicao = new GerarPerguntasIaRequestDTO();
         requisicao.setDadosSinteticosOuDesidentificados(true);
         requisicao.setDistribuicao(List.of(
-                new DistribuicaoPerguntaIaDTO(TipoPergunta.DIAGNOSTICO, 1, null),
-                new DistribuicaoPerguntaIaDTO(TipoPergunta.DIAGNOSTICO, 1, null)));
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.DISCURSIVA, 1, null),
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.DISCURSIVA, 1, null)));
 
         assertThatThrownBy(() -> serviceComChave().gerarPerguntas(1L, requisicao))
                 .isInstanceOf(BusinessException.class)
@@ -454,7 +518,7 @@ class PerguntaIaServiceTests {
         requisicao.setInstrucoesAdicionais("Varie o raciocinio avaliado");
         requisicao.setDistribuicao(List.of(
                 new DistribuicaoPerguntaIaDTO(TipoPergunta.MULTIPLA_ESCOLHA, 1, 4),
-                new DistribuicaoPerguntaIaDTO(TipoPergunta.DIAGNOSTICO, 1, null)));
+                new DistribuicaoPerguntaIaDTO(TipoPergunta.DISCURSIVA, 1, null)));
         return requisicao;
     }
 

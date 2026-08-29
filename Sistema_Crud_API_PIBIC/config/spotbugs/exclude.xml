@@ -18,10 +18,13 @@
                 <Class name="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIa"/>
                 <Or>
                     <Method
-                            params="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,int,int,long,java.time.Duration"
+                            params="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,boolean,int,int,int,long,java.time.Duration"
                             returns="void"/>
                     <Method
                             params="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,int,int,java.time.Duration,java.time.Duration,java.time.Clock"
+                            returns="void"/>
+                    <Method
+                            params="com.SistemaApiCrud.SistemaCrud.service.ControleUsoIaStore,com.SistemaApiCrud.SistemaCrud.service.IdentificadorProtegido,int,int,int,java.time.Duration,java.time.Duration,java.time.Clock,boolean"
                             returns="void"/>
                 </Or>
             </And>
@@ -89,6 +92,20 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
         <Class name="com.SistemaApiCrud.SistemaCrud.entity.Paciente"/>
         <Field name="casoClinico"/>
+    </Match>
+
+    <!-- O registro transporta a mesma entidade JPA entre as fases da transacao. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Class name="com.SistemaApiCrud.SistemaCrud.service.InicioIdempotenciaIa"/>
+        <Field name="solicitacao"/>
+    </Match>
+
+    <!-- Mantem compatibilidade com implementacoes antigas do cliente sem metricas. -->
+    <Match>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+        <Class name="com.SistemaApiCrud.SistemaCrud.service.ServicoCasoClinicoIa"/>
+        <Method name="gerarConteudoComPrompt"/>
     </Match>
 
     <!-- O DTO precisa ser mutavel para desserializacao estruturada pelo Jackson. -->

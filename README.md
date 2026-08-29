@@ -12,6 +12,8 @@ O sistema permite que professores construam experiências de estudo baseadas em 
 - Cadastrar pacientes, conteúdos clínicos e perguntas.
 - Gerar e ajustar conteúdos clínicos com apoio de IA.
 - Gerar e persistir perguntas com IA, tanto para conteúdos clínicos manuais quanto para os gerados por IA.
+
+Na geração clínica e nos ajustes posteriores, especialidade, diagnóstico esperado e objetivo de aprendizagem são âncoras obrigatórias do professor. A API valida a coerência dessas informações, dos campos clínicos e do perfil do paciente antes de chamar a geração principal. Na criação, preserva literalmente todo campo preenchido e completa somente lacunas. Incoerências confirmadas respondem `422 Unprocessable Entity` com mensagens por campo, mantendo o rascunho e sem salvar conteúdo clínico parcial.
 - Revisar respostas discursivas e de conduta antes de incluí-las no cálculo do desempenho.
 - Definir o nível de dificuldade e o tempo limite de cada caso.
 - Acompanhar o desempenho dos alunos.
@@ -43,25 +45,27 @@ Professores podem gerar perguntas para um caso clínico em rascunho com `POST /c
 }
 ```
 
-Para gerar um lote variado em uma única chamada, substitua os campos do modo único por uma distribuição de 2 a 5 tipos:
+Para gerar um lote variado em uma única chamada, substitua os campos do modo único por uma distribuição de 2 a 3 tipos:
 
 ```json
 {
   "distribuicao": [
     { "tipo": "MULTIPLA_ESCOLHA", "quantidade": 2, "quantidadeAlternativas": 4 },
     { "tipo": "VERDADEIRO_FALSO", "quantidade": 1 },
-    { "tipo": "DIAGNOSTICO", "quantidade": 1 }
+    { "tipo": "DISCURSIVA", "quantidade": 1 }
   ],
   "instrucoesAdicionais": "Priorize raciocínio diagnóstico e conduta inicial.",
   "dadosSinteticosOuDesidentificados": true
 }
 ```
 
-No modo único, os valores padrão são 5 perguntas, tipo `MULTIPLA_ESCOLHA` e 4 alternativas. Na distribuição, cada tipo pode aparecer uma vez e a soma deve ficar entre 1 e 10 perguntas. A quantidade de alternativas é aceita somente para `MULTIPLA_ESCOLHA`. As instruções adicionais aceitam até 2.000 caracteres. Em caso de sucesso, a API responde com `201 Created` e a lista de perguntas persistidas.
+No modo único, os valores padrão são 5 perguntas, tipo `MULTIPLA_ESCOLHA` e 4 alternativas. Os tipos disponíveis para novas perguntas são `MULTIPLA_ESCOLHA`, `VERDADEIRO_FALSO` e `DISCURSIVA`; `DIAGNOSTICO` e `CONDUTA_CLINICA` estão temporariamente indisponíveis. Na distribuição, cada tipo pode aparecer uma vez e a soma deve ficar entre 1 e 10 perguntas. A quantidade de alternativas é aceita somente para `MULTIPLA_ESCOLHA`. As instruções adicionais aceitam até 2.000 caracteres. Em caso de sucesso, a API responde com `201 Created` e a lista de perguntas persistidas.
 
 ## Revisão humana das respostas
 
-Respostas de múltipla escolha, verdadeiro ou falso e diagnóstico são corrigidas automaticamente. Respostas `DISCURSIVA` e `CONDUTA_CLINICA` permanecem com `correta: null` até a decisão do professor responsável ou de um administrador.
+Respostas de múltipla escolha e verdadeiro ou falso são corrigidas automaticamente. Respostas `DISCURSIVA` permanecem com `correta: null` até a decisão do professor responsável ou de um administrador.
+
+Perguntas `DISCURSIVA` podem armazenar uma `rubrica` estruturada. Registros legados dos tipos `DIAGNOSTICO` e `CONDUTA_CLINICA` continuam legíveis e avaliáveis, mas não podem ser criados nem gerados novamente. O campo textual `resposta` permanece obrigatório para compatibilidade com registros e clientes anteriores.
 
 - `GET /casos/{id}/respostas/pendentes-revisao` lista as respostas pendentes de forma paginada.
 - `PATCH /casos/{id}/respostas/{idResposta}/revisao`, com `{"correta": true}` ou `{"correta": false}`, registra a decisão humana.
@@ -97,10 +101,10 @@ As opções e o procedimento operacional completo estão em [docs/ia-piloto.md](
 
 ## Proteções do piloto
 
-- Cada usuário autenticado pode fazer, por padrão, até 5 chamadas de IA por minuto e 20 por dia; há no máximo 3 chamadas simultâneas no processo.
+- Cada usuário autenticado pode fazer, por padrão, até 5 operações de geração por minuto e 20 por dia. Geração, reparo e validação internos da mesma operação idempotente consomem uma única unidade; há no máximo 3 chamadas simultâneas ao provedor no processo.
 - Um limite excedido responde com `429 Too Many Requests` e o cabeçalho `Retry-After`, em segundos.
 - Quando os provedores gratuitos esgotam temporariamente a capacidade, a API responde com `503 Service Unavailable` e `Retry-After`.
-- Uma chamada de IA que exceda 30 segundos responde com `504 Gateway Timeout`.
+- Uma chamada de IA que exceda 60 segundos responde com `504 Gateway Timeout`.
 - Geração, ajuste e perguntas aceitam `Idempotency-Key` UUID. Uma tentativa concluída é reproduzida sem chamar novamente o provedor; uma tentativa ainda em andamento responde com `409` e `Retry-After`.
 - O ledger guarda somente hashes, estado e identificadores de resultado. A V19 remove a antiga coluna que duplicava respostas clínicas. A chave expira após `IA_IDEMPOTENCIA_TTL` (1 hora por padrão) e é reutilizada com bloqueio transacional.
 - A auditoria registra duração do provedor, modelo efetivo, tokens quando informados e o ID de correlação, sem duplicar prompt ou saída clínica.

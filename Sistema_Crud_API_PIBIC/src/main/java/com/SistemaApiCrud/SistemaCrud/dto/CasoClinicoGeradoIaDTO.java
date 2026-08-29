@@ -1,8 +1,13 @@
 package com.SistemaApiCrud.SistemaCrud.dto;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonPropertyOrder({
+        "statusCoerencia",
+        "violacoes",
         "sintomas",
         "contexto",
         "examClinico",
@@ -13,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 })
 public class CasoClinicoGeradoIaDTO {
 
+    private String statusCoerencia;
+    private Map<String, String> violacoes;
     private String sintomas;
     private String contexto;
     private String examClinico;
@@ -20,6 +27,22 @@ public class CasoClinicoGeradoIaDTO {
     private String diagEsperado;
     private String objetivoAprendizagem;
     private PacienteGeradoIaDTO paciente;
+
+    public String getStatusCoerencia() {
+        return statusCoerencia;
+    }
+
+    public void setStatusCoerencia(String statusCoerencia) {
+        this.statusCoerencia = statusCoerencia;
+    }
+
+    public Map<String, String> getViolacoes() {
+        return violacoes == null ? null : new LinkedHashMap<>(violacoes);
+    }
+
+    public void setViolacoes(Map<String, String> violacoes) {
+        this.violacoes = violacoes == null ? null : new LinkedHashMap<>(violacoes);
+    }
 
     public String getSintomas() {
         return sintomas;

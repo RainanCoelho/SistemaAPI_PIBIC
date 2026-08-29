@@ -707,6 +707,12 @@ paths:
           in: query
           schema:
             type: string
+        - name: incluirArquivados
+          in: query
+          description: Quando falso e sem filtro de status, omite casos arquivados.
+          schema:
+            type: boolean
+            default: true
         - name: page
           in: query
           schema:
@@ -772,12 +778,12 @@ paths:
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
     delete:
-      summary: Remove caso
+      summary: Remove definitivamente um caso e seus dados associados
       parameters:
         - $ref: "#/components/parameters/id"
       responses:
         "204":
-          description: Caso removido
+          description: Caso, conteúdo, perguntas e respostas associados removidos
         "409":
           $ref: "#/components/responses/Conflito"
   /casos/{id}/completo:
@@ -830,9 +836,12 @@ paths:
     post:
       summary: Gera conteudo clinico com apoio da IA
       description: |
-        Completa os campos nao informados pelo professor e salva o conteudo
-        gerado no caso clinico. Aceita somente dados sinteticos ou previamente
-        desidentificados. A saida deve ser revisada por um professor.
+        Antes de gerar, valida a coerencia entre especialidade, diagnostico
+        esperado, objetivo de aprendizagem e todos os campos informados pelo
+        professor. Somente os campos ausentes sao completados pela IA; os campos
+        informados permanecem imutaveis. Dados incoerentes respondem 422 sem
+        iniciar a geracao principal nem salvar conteudo clinico. Aceita somente
+        dados sinteticos ou previamente desidentificados.
       parameters:
         - $ref: "#/components/parameters/id"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -857,6 +866,8 @@ paths:
           $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
+        "422":
+          $ref: "#/components/responses/DadosClinicosIncoerentes"
         "429":
           $ref: "#/components/responses/LimiteAtingido"
         "502":
@@ -870,8 +881,11 @@ paths:
       summary: Ajusta conteudo clinico existente com apoio da IA
       description: |
         Reescreve o conteudo clinico mais recente do caso conforme o tipo de
-        ajuste solicitado. Aceita somente dados sinteticos ou previamente
-        desidentificados. A saida deve ser revisada por um professor.
+        ajuste solicitado. Antes de chamar a geracao, valida a coerencia do
+        conteudo atual com as ancoras e o paciente; a saida tambem passa por
+        validacao de coerencia antes de ser salva. Aceita somente dados
+        sinteticos ou previamente desidentificados. A saida deve ser revisada
+        por um professor.
       parameters:
         - $ref: "#/components/parameters/id"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -896,6 +910,8 @@ paths:
           $ref: "#/components/responses/Conflito"
         "413":
           $ref: "#/components/responses/CorpoRequisicaoExcedido"
+        "422":
+          $ref: "#/components/responses/DadosClinicosIncoerentes"
         "429":
           $ref: "#/components/responses/LimiteAtingido"
         "502":
@@ -1187,6 +1203,30 @@ components:
         type: string
         example: nome,asc
   responses:
+    DadosClinicosIncoerentes:
+      description: |
+        As ancoras obrigatorias estao ausentes, os dados fornecidos pelo
+        professor sao incoerentes ou o conteudo gerado nao respeita essas ancoras.
+        O objeto campos associa cada campo afetado a uma orientacao curta.
+      headers:
+        X-Correlation-Id:
+          $ref: "#/components/headers/CorrelationId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: urn:sistema-api-pibic:problem:dados-clinicos-incoerentes
+            title: Dados clinicos incoerentes
+            status: 422
+            detail: Os dados informados sao clinicamente incoerentes
+            instance: /casos/41/ia/gerar
+            timestamp: "2026-08-28T20:00:00Z"
+            correlationId: 7c973582-36bc-45a7-980f-285901008ad8
+            erro: Os dados informados sao clinicamente incoerentes
+            campos:
+              especialidade: A especialidade nao sustenta o diagnostico informado
+              diagEsperado: O diagnostico informado pertence a outro contexto clinico
     CorpoRequisicaoExcedido:
       description: O corpo da requisicao excede o limite configurado.
       headers:
@@ -1715,8 +1755,12 @@ components:
               format: date-time
     CasoClinicoIARequest:
       type: object
-      description: Campos preenchidos parcialmente pelo professor; os campos ausentes serao completados pela IA.
+      description: |
+        Campos preenchidos parcialmente pelo professor. O diagnostico esperado,
+        a especialidade e o objetivo de aprendizagem sao ancoras obrigatorias;
+        os demais campos ausentes podem ser completados pela IA.
       required:
+        - diagEsperado
         - dadosSinteticosOuDesidentificados
       properties:
         sintomas:
@@ -1894,7 +1938,7 @@ components:
           example: 5
         tipo:
           type: string
-          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO]
           default: MULTIPLA_ESCOLHA
           example: MULTIPLA_ESCOLHA
         quantidadeAlternativas:
@@ -1906,7 +1950,7 @@ components:
         distribuicao:
           type: array
           minItems: 2
-          maxItems: 5
+          maxItems: 3
           uniqueItems: true
           description: |
             Distribuicao para geracao variada. Cada tipo pode aparecer uma unica
@@ -1929,8 +1973,8 @@ components:
       properties:
         tipo:
           type: string
-          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
-          example: DIAGNOSTICO
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO]
+          example: DISCURSIVA
         quantidade:
           type: integer
           minimum: 1
@@ -1969,6 +2013,55 @@ components:
         texto:
           type: string
           maxLength: 10000
+    RubricaPergunta:
+      type: object
+      additionalProperties: false
+      description: >-
+        Rubrica estruturada opcional para perguntas DISCURSIVA e CONDUTA_CLINICA.
+        A propriedade resposta permanece obrigatoria como resumo e compatibilidade legada.
+      properties:
+        criteriosEssenciais:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        criteriosPontuacao:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        errosGraves:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        justificativas:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        prioridades:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        sinaisEscalonamento:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
     PerguntaRequest:
       type: object
       required:
@@ -1986,7 +2079,7 @@ components:
           maxLength: 10000
         tipo:
           type: string
-          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO, DIAGNOSTICO, CONDUTA_CLINICA]
+          enum: [MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO]
           example: MULTIPLA_ESCOLHA
         gabarito:
           type: string
@@ -1994,6 +2087,10 @@ components:
         resposta:
           type: string
           maxLength: 10000
+        rubrica:
+          allOf:
+            - $ref: "#/components/schemas/RubricaPergunta"
+          nullable: true
         alternativas:
           type: array
           maxItems: 5
@@ -2018,6 +2115,10 @@ components:
           type: string
         resposta:
           type: string
+        rubrica:
+          allOf:
+            - $ref: "#/components/schemas/RubricaPergunta"
+          nullable: true
         alternativas:
           type: array
           items:

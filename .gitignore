@@ -4,6 +4,7 @@ target/
 *.iml
 out/
 build/
+output/
 .env
 .env.*
 !.env.example

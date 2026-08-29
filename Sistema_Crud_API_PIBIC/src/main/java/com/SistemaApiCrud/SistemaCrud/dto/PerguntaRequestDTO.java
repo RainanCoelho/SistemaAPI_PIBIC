@@ -34,6 +34,9 @@ public class PerguntaRequestDTO {
     @Size(max = 10000, message = "A resposta deve ter no maximo 10000 caracteres")
     private String resposta;
 
+    @Valid
+    private RubricaPerguntaDTO rubrica;
+
     @NotNull(message = "O tipo da pergunta e obrigatorio")
     private TipoPergunta tipo;
 

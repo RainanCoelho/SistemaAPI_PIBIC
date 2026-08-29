@@ -141,8 +141,7 @@ Content-Type: application/json
 
 ### Gerar e persistir perguntas com IA
 # Funciona com conteudo clinico criado manualmente ou por IA.
-# Os tipos aceitos sao MULTIPLA_ESCOLHA, DISCURSIVA, VERDADEIRO_FALSO,
-# DIAGNOSTICO e CONDUTA_CLINICA.
+# Os tipos aceitos sao MULTIPLA_ESCOLHA, DISCURSIVA e VERDADEIRO_FALSO.
 POST {{baseUrl}}/casos/1/ia/perguntas/gerar
 Authorization: Bearer {{loginProfessor.response.body.$.token}}
 Content-Type: application/json
@@ -164,7 +163,7 @@ Content-Type: application/json
   "distribuicao": [
     { "tipo": "MULTIPLA_ESCOLHA", "quantidade": 2, "quantidadeAlternativas": 4 },
     { "tipo": "VERDADEIRO_FALSO", "quantidade": 1 },
-    { "tipo": "DIAGNOSTICO", "quantidade": 1 }
+    { "tipo": "DISCURSIVA", "quantidade": 1 }
   ],
   "instrucoesAdicionais": "Varie os objetivos cognitivos avaliados.",
   "dadosSinteticosOuDesidentificados": true

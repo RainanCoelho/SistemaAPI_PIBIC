@@ -25,6 +25,8 @@ public class PerguntaResponseDTO {
 
     private String resposta;
 
+    private RubricaPerguntaDTO rubrica;
+
     private TipoPergunta tipo;
 
     private String gabarito;

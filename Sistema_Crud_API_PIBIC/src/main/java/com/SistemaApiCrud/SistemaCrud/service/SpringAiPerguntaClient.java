@@ -12,6 +12,7 @@ import com.SistemaApiCrud.SistemaCrud.dto.PerguntasGeradasIaDTO;
 import com.SistemaApiCrud.SistemaCrud.exception.AiProviderException;
 import com.SistemaApiCrud.SistemaCrud.exception.CapacidadeIaEsgotadaException;
 import com.SistemaApiCrud.SistemaCrud.exception.LimiteUsoIaException;
+import com.SistemaApiCrud.SistemaCrud.exception.ServicoIndisponivelException;
 import com.SistemaApiCrud.SistemaCrud.exception.TempoEsgotadoIaException;
 
 @Service
@@ -71,6 +72,11 @@ public class SpringAiPerguntaClient implements PerguntaAiClient {
             if (FalhasIa.possuiTempoEsgotado(falha)) {
                 throw new TempoEsgotadoIaException(
                         "O provedor de IA excedeu o tempo limite da requisicao",
+                        falha);
+            }
+            if (FalhasIa.possuiIndisponibilidadeDeRede(falha)) {
+                throw new ServicoIndisponivelException(
+                        "O gateway de IA esta indisponivel. Verifique se o servico configurado em IA_URL_BASE esta ativo",
                         falha);
             }
             throw new AiProviderException("Nao foi possivel gerar perguntas com o provedor de IA", falha);

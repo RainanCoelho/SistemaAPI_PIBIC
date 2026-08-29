@@ -67,9 +67,10 @@ public class CasoClinicoController {
             @RequestParam(required = false)
             @Size(max = 100, message = "O termo deve ter no maximo 100 caracteres")
             String termo,
+            @RequestParam(defaultValue = "true") boolean incluirArquivados,
             @PageableDefault(size = 20, sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
         Long filtroProfessor = autorizacaoService.resolverFiltroProfessor(idProfessor);
-        return service.listarPaginado(status, filtroProfessor, termo, pageable);
+        return service.listarPaginado(status, filtroProfessor, termo, incluirArquivados, pageable);
     }
 
     @GetMapping("/{id}")

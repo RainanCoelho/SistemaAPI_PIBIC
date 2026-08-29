@@ -105,11 +105,11 @@ Antes de cadastrar um provedor, revise os termos atuais da respectiva conta. Nã
 | `IA_MODELO` | `auto` | Permite que o gateway selecione a rota. |
 | `IA_TEMPERATURA` | `0.2` | Reduz variação e favorece consistência estrutural. |
 | `IA_MAXIMO_TOKENS_SAIDA` | `4000` | Limita o tamanho máximo solicitado para a saída da IA. |
-| `IA_TEMPO_LIMITE` | `30s` | Tempo máximo da chamada antes de responder `504`. |
+| `IA_TEMPO_LIMITE` | `60s` | Tempo máximo da chamada antes de responder `504`. |
 | `IA_IDEMPOTENCIA_TTL` | `1h` | Retenção dos metadados de uma tentativa para replay seguro. |
 | `IA_MAXIMO_TENTATIVAS_HTTP` | `0` | Evita multiplicar tentativas; o gateway já trata fallback entre provedores. |
-| `IA_LIMITE_POR_MINUTO` | `5` | Cota por usuário autenticado a cada minuto. |
-| `IA_LIMITE_POR_DIA` | `20` | Cota por usuário autenticado no dia, no fuso de São Paulo. |
+| `IA_LIMITE_POR_MINUTO` | `5` | Cota de operações de geração por usuário autenticado a cada minuto. Chamadas internas de reparo e validação da mesma operação idempotente não consomem unidades extras. |
+| `IA_LIMITE_POR_DIA` | `20` | Cota de operações de geração por usuário autenticado no dia, no fuso de São Paulo. |
 | `IA_MAXIMO_SIMULTANEAS` | `3` | Máximo global de chamadas concorrentes no processo. |
 | `HTTP_LIMITE_CORPO_BYTES` | `1048576` | Limite global de 1 MiB para corpos `POST`, `PUT` e `PATCH`. |
 | `FREELLMAPI_CHAVE_CRIPTOGRAFIA` | sem valor válido | Chave de criptografia usada pelo contêiner do gateway. |
@@ -130,6 +130,7 @@ Se o backend for colocado futuramente no mesmo Compose, `127.0.0.1` passará a a
 | Chave/base de IA ausente ou inválida na configuração | `503 Service Unavailable` | Corrija as variáveis do backend. |
 | Capacidade gratuita temporariamente esgotada nos provedores | `503 Service Unavailable` | Aguarde o cabeçalho `Retry-After` antes de tentar novamente. |
 | Chamada acima de `IA_TEMPO_LIMITE` | `504 Gateway Timeout` | Tente depois; avalie provedor, tamanho do contexto e latência. |
+| Âncoras ausentes ou incoerência clínica confirmada | `422 Unprocessable Entity` | Corrija os campos indicados em `campos`; a geração principal não é iniciada e nenhum conteúdo clínico é salvo. |
 | Mesma `Idempotency-Key` ainda em processamento | `409 Conflict` + `Retry-After` | Aguarde e repita com a mesma chave; não crie outra tentativa concorrente. |
 
 Os contadores por minuto e por dia e o ledger de idempotência ficam no PostgreSQL. O ledger retém apenas hashes, estado e IDs de resultado; a V19 remove a antiga coluna que duplicava respostas clínicas. A chave expira após `IA_IDEMPOTENCIA_TTL` (1 hora por padrão) e sua reutilização é protegida por bloqueio transacional. O limite de simultaneidade é local ao processo; antes de escalar horizontalmente, coordene esse limite entre réplicas e mantenha métricas e alertas.
@@ -147,6 +148,8 @@ Antes de cada geração:
 3. envie apenas os campos necessários ao objetivo educacional;
 4. revise as condições de uso e retenção do provedor que poderá receber a rota;
 5. depois da geração, revise correção clínica, coerência, vieses e ausência de dados pessoais.
+
+Antes de gerar ou ajustar um caso, o professor deve informar especialidade, diagnóstico esperado e objetivo de aprendizagem. A API pré-valida semanticamente essas âncoras junto aos demais campos preenchidos e ao perfil do paciente. Uma primeira avaliação `INCOERENTE` é confirmada uma única vez; somente uma incoerência confirmada bloqueia a chamada principal. Na criação, a IA recebe os campos do professor como imutáveis e completa apenas as lacunas. Tanto a criação quanto o ajuste validam novamente a saída antes de persistir. O erro `422` devolve mensagens por campo para que o cliente leve o professor diretamente ao dado que precisa ser corrigido.
 
 Veja [politica-dados-clinicos.md](politica-dados-clinicos.md).
 

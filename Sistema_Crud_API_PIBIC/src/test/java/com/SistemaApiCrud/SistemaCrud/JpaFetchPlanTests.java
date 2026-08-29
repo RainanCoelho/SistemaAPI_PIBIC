@@ -132,6 +132,55 @@ class JpaFetchPlanTests {
                 .isLessThanOrEqualTo(2);
     }
 
+    @Test
+    void listagemPodeOcultarArquivadosSemImpedirFiltroExplicito() {
+        String marcador = UUID.randomUUID().toString();
+        Professor professor = professorRepository.saveAndFlush(new Professor(
+                null,
+                "Professora Arquivamento " + marcador,
+                "arquivamento-" + marcador + "@example.com",
+                "Clinica"));
+
+        salvarCaso(professor, "Caso ativo " + marcador, StatusCasoClinico.RASCUNHO);
+        salvarCaso(professor, "Caso publicado " + marcador, StatusCasoClinico.PUBLICADO);
+        salvarCaso(professor, "Caso arquivado " + marcador, StatusCasoClinico.ARQUIVADO);
+        casoRepository.flush();
+
+        var ativos = casoService.listarPaginado(
+                null,
+                professor.getId(),
+                marcador,
+                false,
+                PageRequest.of(0, 20));
+        var arquivados = casoService.listarPaginado(
+                StatusCasoClinico.ARQUIVADO,
+                professor.getId(),
+                marcador,
+                false,
+                PageRequest.of(0, 20));
+
+        assertThat(ativos.getContent())
+                .hasSize(2)
+                .noneMatch(caso -> caso.getStatus() == StatusCasoClinico.ARQUIVADO);
+        assertThat(arquivados.getContent())
+                .singleElement()
+                .satisfies(caso -> assertThat(caso.getStatus()).isEqualTo(StatusCasoClinico.ARQUIVADO));
+    }
+
+    private void salvarCaso(Professor professor, String titulo, StatusCasoClinico status) {
+        CasoClinico caso = new CasoClinico();
+        caso.setProfessor(professor);
+        caso.setTitulo(titulo);
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
+        caso.setDisciplina("Clinica");
+        caso.setAreaSaude("Medicina");
+        caso.setEstilo("Raciocinio clinico");
+        caso.setEspecialidade("Clinica medica");
+        caso.setStatus(status);
+        caso.setTempoLimiteMinutos(60);
+        casoRepository.save(caso);
+    }
+
     private void assertOneToOneLazy(Class<?> tipo, String nomeCampo) throws Exception {
         Field campo = tipo.getDeclaredField(nomeCampo);
         OneToOne oneToOne = campo.getAnnotation(OneToOne.class);

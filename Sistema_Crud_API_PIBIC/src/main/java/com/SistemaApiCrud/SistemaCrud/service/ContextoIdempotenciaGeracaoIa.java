@@ -4,21 +4,49 @@ import java.util.function.Supplier;
 
 public final class ContextoIdempotenciaGeracaoIa {
 
-    private static final ThreadLocal<Long> ID_SOLICITACAO = new ThreadLocal<>();
+    private static final ThreadLocal<Contexto> CONTEXTO = new ThreadLocal<>();
 
     private ContextoIdempotenciaGeracaoIa() {
     }
 
     public static <T> T executar(Long idSolicitacao, Supplier<T> operacao) {
-        ID_SOLICITACAO.set(idSolicitacao);
+        Contexto anterior = CONTEXTO.get();
+        CONTEXTO.set(new Contexto(idSolicitacao));
         try {
             return operacao.get();
         } finally {
-            ID_SOLICITACAO.remove();
+            if (anterior == null) {
+                CONTEXTO.remove();
+            } else {
+                CONTEXTO.set(anterior);
+            }
         }
     }
 
     public static Long idAtual() {
-        return ID_SOLICITACAO.get();
+        Contexto contexto = CONTEXTO.get();
+        return contexto == null ? null : contexto.idSolicitacao;
+    }
+
+    static boolean deveRegistrarUso() {
+        Contexto contexto = CONTEXTO.get();
+        return contexto == null || !contexto.usoRegistrado;
+    }
+
+    static void marcarUsoRegistrado() {
+        Contexto contexto = CONTEXTO.get();
+        if (contexto != null) {
+            contexto.usoRegistrado = true;
+        }
+    }
+
+    private static final class Contexto {
+
+        private final Long idSolicitacao;
+        private boolean usoRegistrado;
+
+        private Contexto(Long idSolicitacao) {
+            this.idSolicitacao = idSolicitacao;
+        }
     }
 }

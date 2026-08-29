@@ -60,9 +60,15 @@ class IdempotenciaGeracaoIaServiceTests {
                 java.util.Map.of("campo", "valor"),
                 200,
                 solicitacao -> "nao-usado",
-                () -> "resultado-ia-" + chamadas.incrementAndGet());
+                () -> {
+                    assertThat(ContextoIdempotenciaGeracaoIa.deveRegistrarUso()).isTrue();
+                    ContextoIdempotenciaGeracaoIa.marcarUsoRegistrado();
+                    assertThat(ContextoIdempotenciaGeracaoIa.deveRegistrarUso()).isFalse();
+                    return "resultado-ia-" + chamadas.incrementAndGet();
+                });
 
         assertThat(resposta.corpo()).isEqualTo("resultado-ia-1");
+        assertThat(ContextoIdempotenciaGeracaoIa.deveRegistrarUso()).isTrue();
         verify(store, never()).iniciar(any(), any(), any(), any(), any());
     }
 

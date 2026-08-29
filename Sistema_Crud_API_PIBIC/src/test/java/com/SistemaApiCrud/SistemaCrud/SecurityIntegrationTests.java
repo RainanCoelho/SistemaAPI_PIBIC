@@ -294,10 +294,10 @@ class SecurityIntegrationTests {
                                         new AlternativaGeradaIaDTO("A", "Febre e crepitacoes", true),
                                         new AlternativaGeradaIaDTO("B", "Ausencia de sintomas", false))),
                         new PerguntaGeradaIaDTO(
-                                TipoPergunta.DIAGNOSTICO,
-                                "Qual e o diagnostico mais provavel?",
-                                "O conjunto de sinais e sintomas e compativel com pneumonia.",
-                                "Pneumonia comunitaria|Pneumonia adquirida na comunidade",
+                                TipoPergunta.VERDADEIRO_FALSO,
+                                "Febre e crepitacoes podem sustentar a hipotese de pneumonia.",
+                                "Os achados sao compativeis com infeccao pulmonar.",
+                                "VERDADEIRO",
                                 java.util.List.of()))));
 
         mockMvc.perform(post("/casos/" + caso.getIdCaso() + "/ia/perguntas/gerar")
@@ -316,7 +316,7 @@ class SecurityIntegrationTests {
                                       "quantidadeAlternativas": 2
                                     },
                                     {
-                                      "tipo": "DIAGNOSTICO",
+                                      "tipo": "VERDADEIRO_FALSO",
                                       "quantidade": 1
                                     }
                                   ],
@@ -327,14 +327,62 @@ class SecurityIntegrationTests {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].tipo").value("MULTIPLA_ESCOLHA"))
                 .andExpect(jsonPath("$[0].alternativas.length()").value(2))
-                .andExpect(jsonPath("$[1].tipo").value("DIAGNOSTICO"))
+                .andExpect(jsonPath("$[1].tipo").value("VERDADEIRO_FALSO"))
                 .andExpect(jsonPath("$[1].alternativas.length()").value(0));
 
         assertThat(perguntaRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
                 .extracting(Pergunta::getTipo)
                 .containsExactlyInAnyOrder(
                         TipoPergunta.MULTIPLA_ESCOLHA,
-                        TipoPergunta.DIAGNOSTICO);
+                        TipoPergunta.VERDADEIRO_FALSO);
+    }
+
+    @Test
+    void professorDevePersistirERetornarRubricaEstruturada() throws Exception {
+        Map<String, Object> login = login("professor", "professor123");
+        String token = (String) login.get("token");
+        Professor professor = usuarioRepository.findByUsername("professor")
+                .orElseThrow()
+                .getProfessor();
+
+        CasoClinico caso = new CasoClinico();
+        caso.setProfessor(professor);
+        caso.setTitulo("Caso com rubrica estruturada");
+        caso.setNivelDificuldade(NivelDificuldade.MEDIA);
+        caso.setDisciplina("Clinica");
+        caso.setAreaSaude("Medicina");
+        caso.setEstilo("Pergunta discursiva");
+        caso.setEspecialidade("Emergencia");
+        caso.setStatus(StatusCasoClinico.RASCUNHO);
+        caso = casoRepository.saveAndFlush(caso);
+
+        mockMvc.perform(post("/perguntas/caso/" + caso.getIdCaso())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "texto": "Explique o raciocinio clinico inicial.",
+                                  "resposta": "Relacionar achados, hipotese e justificativa.",
+                                  "tipo": "DISCURSIVA",
+                                  "gabarito": "REVISAO_MANUAL",
+                                  "alternativas": [],
+                                  "rubrica": {
+                                    "criteriosEssenciais": ["Avaliar estabilidade"],
+                                    "justificativas": ["Relacionar conduta e gravidade"],
+                                    "errosGraves": ["Adiar suporte em paciente instavel"]
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rubrica.criteriosEssenciais[0]")
+                        .value("Avaliar estabilidade"))
+                .andExpect(jsonPath("$.rubrica.errosGraves[0]")
+                        .value("Adiar suporte em paciente instavel"));
+
+        assertThat(perguntaRepository.findByCasoClinicoIdCaso(caso.getIdCaso()))
+                .singleElement()
+                .extracting(pergunta -> pergunta.getRubrica().getJustificativas())
+                .isEqualTo(java.util.List.of("Relacionar conduta e gravidade"));
     }
 
     @Test

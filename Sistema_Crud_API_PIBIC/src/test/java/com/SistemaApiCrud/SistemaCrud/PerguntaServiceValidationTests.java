@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.SistemaApiCrud.SistemaCrud.dto.AlternativaPerguntaDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
+import com.SistemaApiCrud.SistemaCrud.dto.RubricaPerguntaDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.BadRequestException;
 import com.SistemaApiCrud.SistemaCrud.mapper.PerguntaMapper;
@@ -80,23 +81,35 @@ class PerguntaServiceValidationTests {
     }
 
     @Test
-    void deveRejeitarSinonimosDuplicadosNoDiagnostico() {
+    void deveRejeitarDiagnosticoParaNovaPergunta() {
         PerguntaRequestDTO pergunta = pergunta(
                 TipoPergunta.DIAGNOSTICO,
-                "Pneumonia comunitaria|pneumonia comunitária");
+                "Pneumonia comunitaria");
 
         assertThatThrownBy(() -> service.salvarEmCaso(1L, pergunta))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("termos duplicados");
+                .hasMessageContaining("temporariamente indisponiveis");
     }
 
     @Test
-    void deveExigirRevisaoManualParaPerguntaAberta() {
-        PerguntaRequestDTO pergunta = pergunta(TipoPergunta.CONDUTA_CLINICA, "CONDUTA A");
+    void deveRejeitarCondutaClinicaParaNovaPergunta() {
+        PerguntaRequestDTO pergunta = pergunta(TipoPergunta.CONDUTA_CLINICA, "REVISAO_MANUAL");
 
         assertThatThrownBy(() -> service.salvarEmCaso(1L, pergunta))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("REVISAO_MANUAL");
+                .hasMessageContaining("temporariamente indisponiveis");
+    }
+
+    @Test
+    void deveRejeitarRubricaEstruturadaEmPerguntaObjetiva() {
+        PerguntaRequestDTO pergunta = pergunta(TipoPergunta.MULTIPLA_ESCOLHA, "A");
+        pergunta.setRubrica(rubricaDiscursiva());
+
+        assertThatThrownBy(() -> service.salvarEmCaso(1L, pergunta))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Somente perguntas discursivas e de conduta");
+
+        verifyNoInteractions(casoLockService, perguntaRepository, alternativaRepository);
     }
 
     private PerguntaRequestDTO pergunta(TipoPergunta tipo, String gabarito) {
@@ -108,5 +121,15 @@ class PerguntaServiceValidationTests {
         pergunta.setGabarito(gabarito);
         pergunta.setAlternativas(List.of());
         return pergunta;
+    }
+
+    private RubricaPerguntaDTO rubricaDiscursiva() {
+        return new RubricaPerguntaDTO(
+                List.of("Integrar sinais e sintomas"),
+                List.of("Dois pontos pela justificativa"),
+                List.of("Ignorar sinal de gravidade"),
+                List.of("Relacionar achados e hipotese"),
+                null,
+                null);
     }
 }

@@ -13,6 +13,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 
 import lombok.AllArgsConstructor;
@@ -42,6 +45,10 @@ public class Pergunta {
 
         @Column(nullable = false, columnDefinition = "TEXT")
 	    private String resposta;
+
+        @JdbcTypeCode(SqlTypes.JSON)
+        @Column(name = "rubrica_estruturada", columnDefinition = "jsonb")
+        private RubricaPergunta rubrica;
 
 	    @Enumerated(EnumType.STRING)
         @Column(nullable = false, length = 40)

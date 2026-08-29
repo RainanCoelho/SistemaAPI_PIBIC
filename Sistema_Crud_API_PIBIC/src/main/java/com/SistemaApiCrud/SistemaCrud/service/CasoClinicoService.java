@@ -75,11 +75,20 @@ public class CasoClinicoService {
             Long idProfessor,
             String termo,
             Pageable pageable) {
+        return listarPaginado(status, idProfessor, termo, true, pageable);
+    }
+
+    public Page<CasoClinicoResponseDTO> listarPaginado(
+            StatusCasoClinico status,
+            Long idProfessor,
+            String termo,
+            boolean incluirArquivados,
+            Pageable pageable) {
         if (idProfessor != null && !professorRepository.existsById(idProfessor)) {
             throw new RecursoNaoEncontradoException("Professor nao encontrado");
         }
 
-        return repository.findAll(filtrarCasos(status, idProfessor, termo), pageable)
+        return repository.findAll(filtrarCasos(status, idProfessor, termo, incluirArquivados), pageable)
                 .map(mapper::toResponse);
     }
 
@@ -176,7 +185,6 @@ public class CasoClinicoService {
         CasoClinico caso = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         autorizacaoService.validarAcessoCaso(caso);
-        CasoClinicoPolicy.validarRascunho(caso);
         repository.deleteById(id);
     }
 
@@ -282,12 +290,15 @@ public class CasoClinicoService {
     private Specification<CasoClinico> filtrarCasos(
             StatusCasoClinico status,
             Long idProfessor,
-            String termo) {
+            String termo,
+            boolean incluirArquivados) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            } else if (!incluirArquivados) {
+                predicates.add(criteriaBuilder.notEqual(root.get("status"), StatusCasoClinico.ARQUIVADO));
             }
 
             if (idProfessor != null) {

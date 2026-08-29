@@ -22,8 +22,8 @@ import com.SistemaApiCrud.SistemaCrud.dto.PerguntaRequestDTO;
 import com.SistemaApiCrud.SistemaCrud.dto.PerguntaResponseDTO;
 import com.SistemaApiCrud.SistemaCrud.entity.AlternativaPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.CasoClinico;
-import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.entity.Pergunta;
+import com.SistemaApiCrud.SistemaCrud.entity.enums.TipoPergunta;
 import com.SistemaApiCrud.SistemaCrud.exception.BadRequestException;
 import com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException;
 import com.SistemaApiCrud.SistemaCrud.exception.RecursoNaoEncontradoException;
@@ -272,7 +272,7 @@ public class PerguntaService {
     @Transactional
     public PerguntaResponseDTO atualizar(Long id, PerguntaRequestDTO dto) {
         Pergunta pergunta = buscarEntityPorIdParaAtualizacao(id);
-        validarPergunta(dto);
+        validarPergunta(dto, pergunta.getTipo());
         Long idCasoAtual = pergunta.getCasoClinico().getIdCaso();
         Long idCasoDestino = dto.getIdCaso() != null ? dto.getIdCaso() : idCasoAtual;
         Map<Long, CasoClinico> casosBloqueados = casoLockService.bloquearRascunhos(
@@ -312,8 +312,26 @@ public class PerguntaService {
     }
 
     private void validarPergunta(PerguntaRequestDTO dto) {
+        validarPergunta(dto, null);
+    }
+
+    private void validarPergunta(
+            PerguntaRequestDTO dto,
+            TipoPergunta tipoLegadoPermitido) {
         if (dto == null || dto.getTipo() == null) {
             throw new BadRequestException("O tipo da pergunta e obrigatorio");
+        }
+        if (!dto.getTipo().disponivelParaNovasPerguntas()
+                && dto.getTipo() != tipoLegadoPermitido) {
+            throw new BadRequestException(
+                    "Os tipos DIAGNOSTICO e CONDUTA_CLINICA estao temporariamente indisponiveis");
+        }
+
+        String erroRubrica = RubricaPerguntaValidator.encontrarErro(
+                dto.getRubrica(),
+                dto.getTipo());
+        if (erroRubrica != null) {
+            throw new BadRequestException(erroRubrica);
         }
 
         switch (dto.getTipo()) {

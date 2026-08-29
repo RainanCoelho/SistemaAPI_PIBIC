@@ -59,6 +59,19 @@ public class ApiExceptionHandler {
                 requisicao);
     }
 
+    @ExceptionHandler(CoerenciaCasoClinicoException.class)
+    public ResponseEntity<ApiProblem> tratarCoerenciaCasoClinico(
+            CoerenciaCasoClinicoException ex,
+            HttpServletRequest requisicao) {
+        return problemas.responder(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "dados-clinicos-incoerentes",
+                "Dados clinicos incoerentes",
+                ex.getMessage(),
+                requisicao,
+                ex.getCampos());
+    }
+
     @ExceptionHandler(ConflitoEstadoException.class)
     public ResponseEntity<ApiProblem> tratarConflitoDeEstado(
             ConflitoEstadoException ex,

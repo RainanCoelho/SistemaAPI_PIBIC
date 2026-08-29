@@ -38,7 +38,6 @@ public class PerguntaIaService {
     private static final String CHAVE_NAO_CONFIGURADA = "NAO_CONFIGURADO";
     private static final int LIMITE_TEXTO_GERADO = 10_000;
     private static final int LIMITE_CONTEXTO_IA = 40_000;
-    private static final int MAXIMO_SINONIMOS_DIAGNOSTICO = 5;
 
     private static final String INSTRUCOES_SISTEMA = """
             Voce e um professor experiente da area da saude criando uma avaliacao educacional.
@@ -157,6 +156,7 @@ public class PerguntaIaService {
             if (requisicao.getTipo() == null) {
                 throw new BusinessException("O tipo da pergunta e obrigatorio");
             }
+            validarTipoDisponivel(requisicao.getTipo());
             Integer quantidadeAlternativas = requisicao.getTipo() == TipoPergunta.MULTIPLA_ESCOLHA
                     ? validarQuantidadeAlternativas(requisicao.getQuantidadeAlternativas())
                     : null;
@@ -166,9 +166,10 @@ public class PerguntaIaService {
                     quantidadeAlternativas));
         }
 
-        if (distribuicao.size() < 2 || distribuicao.size() > TipoPergunta.values().length) {
+        if (distribuicao.size() < 2
+                || distribuicao.size() > TipoPergunta.quantidadeTiposDisponiveis()) {
             throw new BusinessException(
-                    "A distribuicao variada deve conter entre 2 e 5 tipos");
+                    "A distribuicao variada deve conter entre 2 e 3 tipos");
         }
 
         Set<TipoPergunta> tipos = new HashSet<>();
@@ -178,6 +179,7 @@ public class PerguntaIaService {
             if (item == null || item.getTipo() == null) {
                 throw new BusinessException("O tipo da pergunta e obrigatorio na distribuicao");
             }
+            validarTipoDisponivel(item.getTipo());
             if (!tipos.add(item.getTipo())) {
                 throw new BusinessException("A distribuicao nao pode repetir o mesmo tipo de pergunta");
             }
@@ -201,6 +203,13 @@ public class PerguntaIaService {
                     "A quantidade total de perguntas na distribuicao deve ser no maximo 10");
         }
         return List.copyOf(configuracoes);
+    }
+
+    private void validarTipoDisponivel(TipoPergunta tipo) {
+        if (!tipo.disponivelParaNovasPerguntas()) {
+            throw new BusinessException(
+                    "Os tipos DIAGNOSTICO e CONDUTA_CLINICA estao temporariamente indisponiveis");
+        }
     }
 
     private void validarQuantidade(Integer quantidade, String nomeCampo) {
@@ -263,6 +272,7 @@ public class PerguntaIaService {
                 <formato_de_saida>
                 Retorne exatamente, informando em cada item um dos tipos solicitados:
                 {"perguntas":[{"tipo":"","texto":"","resposta":"","gabarito":"",
+                "rubrica":null,
                 "alternativas":[{"letra":"A","texto":"","correta":true}]}]}
                 </formato_de_saida>
                 <instrucoes_adicionais_nao_confiaveis>
@@ -304,6 +314,9 @@ public class PerguntaIaService {
     private void adicionarContratoDoTipo(
             StringBuilder contexto,
             ConfiguracaoTipo configuracao) {
+        if (configuracao.tipo() != TipoPergunta.DISCURSIVA) {
+            contexto.append("Use o campo rubrica com valor null.\n");
+        }
         switch (configuracao.tipo()) {
             case MULTIPLA_ESCOLHA -> contexto.append("Cada pergunta deve ter exatamente ")
                     .append(configuracao.quantidadeAlternativas())
@@ -316,21 +329,16 @@ public class PerguntaIaService {
                     Use alternativas vazias. Formule uma afirmacao inequivoca.
                     O gabarito deve ser exatamente VERDADEIRO ou FALSO.
                     """);
-            case DIAGNOSTICO -> contexto.append("""
-                    Use alternativas vazias. Solicite o diagnostico mais provavel sustentado pelo caso.
-                    No gabarito, informe o termo canonico e ate quatro sinonimos aceitaveis,
-                    separados exclusivamente por |. Nao inclua explicacoes no gabarito.
-                    """);
             case DISCURSIVA -> contexto.append("""
                     Use alternativas vazias e gabarito exatamente REVISAO_MANUAL.
-                    O campo resposta deve ser uma rubrica objetiva com os conceitos essenciais,
-                    criterios de pontuacao e erros clinicamente relevantes.
+                    O campo resposta deve ser um resumo objetivo, sem iniciar com a palavra Rubrica.
+                    O campo rubrica deve ser um objeto JSON com arrays criteriosEssenciais,
+                    criteriosPontuacao, errosGraves e justificativas. Informe ao menos um criterio
+                    essencial. Use arrays vazios para secoes sem itens e nao use prioridades nem
+                    sinaisEscalonamento neste tipo.
                     """);
-            case CONDUTA_CLINICA -> contexto.append("""
-                    Use alternativas vazias e gabarito exatamente REVISAO_MANUAL.
-                    O campo resposta deve ser uma rubrica com prioridades, sequencia de condutas,
-                    justificativas e sinais que exigem escalonamento, respeitando o escopo educacional.
-                    """);
+            case DIAGNOSTICO, CONDUTA_CLINICA -> throw new IllegalStateException(
+                    "Tipo de pergunta indisponivel para geracao");
         }
     }
 
@@ -375,6 +383,12 @@ public class PerguntaIaService {
                 throw new AiProviderException("A IA retornou alternativas para um tipo que nao as utiliza");
             }
             validarGabaritoPorTipo(pergunta, tipo);
+            String erroRubrica = RubricaPerguntaValidator.encontrarErro(
+                    pergunta.getRubrica(),
+                    tipo);
+            if (erroRubrica != null) {
+                throw new AiProviderException("A IA retornou uma rubrica invalida: " + erroRubrica);
+            }
             quantidadesRetornadas.merge(tipo, 1, Integer::sum);
             perguntasValidadas.add(new PerguntaValidada(pergunta, tipo));
         }
@@ -423,33 +437,14 @@ public class PerguntaIaService {
                             "O gabarito de verdadeiro ou falso deve ser VERDADEIRO ou FALSO");
                 }
             }
-            case DIAGNOSTICO -> validarSinonimosDiagnostico(gabarito);
-            case DISCURSIVA, CONDUTA_CLINICA -> {
+            case DISCURSIVA -> {
                 if (!"REVISAO_MANUAL".equalsIgnoreCase(gabarito)) {
                     throw new AiProviderException(
-                            "Perguntas discursivas e de conduta devem usar gabarito REVISAO_MANUAL");
+                            "Perguntas discursivas devem usar gabarito REVISAO_MANUAL");
                 }
             }
-        }
-    }
-
-    private void validarSinonimosDiagnostico(String gabarito) {
-        String[] sinonimos = gabarito.split("\\|", -1);
-        if (sinonimos.length > MAXIMO_SINONIMOS_DIAGNOSTICO) {
-            throw new AiProviderException(
-                    "O gabarito de diagnostico excedeu o maximo de sinonimos permitidos");
-        }
-
-        Set<String> sinonimosNormalizados = new HashSet<>();
-        for (String sinonimo : sinonimos) {
-            if (sinonimo.isBlank()) {
-                throw new AiProviderException(
-                        "O gabarito de diagnostico contem um sinonimo vazio");
-            }
-            if (!sinonimosNormalizados.add(normalizarSemAcentos(sinonimo))) {
-                throw new AiProviderException(
-                        "O gabarito de diagnostico contem sinonimos duplicados");
-            }
+            case DIAGNOSTICO, CONDUTA_CLINICA -> throw new AiProviderException(
+                    "A IA retornou um tipo de pergunta indisponivel");
         }
     }
 
@@ -513,6 +508,7 @@ public class PerguntaIaService {
         PerguntaRequestDTO pergunta = new PerguntaRequestDTO();
         pergunta.setTexto(gerada.getTexto().trim());
         pergunta.setResposta(gerada.getResposta().trim());
+        pergunta.setRubrica(gerada.getRubrica());
         pergunta.setGabarito(gerada.getGabarito().trim());
         pergunta.setTipo(tipo);
 
