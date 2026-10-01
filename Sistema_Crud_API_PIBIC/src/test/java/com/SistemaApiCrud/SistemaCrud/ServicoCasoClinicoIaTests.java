@@ -627,7 +627,8 @@ class ServicoCasoClinicoIaTests {
         ArgumentCaptor<String> contextos = ArgumentCaptor.forClass(String.class);
         verify(aiClient, times(4)).gerarConteudo(instrucoes.capture(), contextos.capture());
         assertThat(instrucoes.getAllValues().get(2)).contains("recuperacao_obrigatoria", "sintomas");
-        assertThat(contextos.getAllValues().get(2)).isEqualTo(contextos.getAllValues().get(1));
+        assertThat(contextos.getAllValues().get(2)).startsWith(contextos.getAllValues().get(1))
+                .contains("<campos_validos_preservados>", "contexto: Paciente adulto");
     }
 
     @Test
@@ -832,6 +833,52 @@ class ServicoCasoClinicoIaTests {
                 new CasoClinicoIaRequestDTO(null, null, null, null, "Exacerbacao asmatica")))
                 .isInstanceOf(com.SistemaApiCrud.SistemaCrud.exception.AiProviderException.class)
                 .hasMessageContaining("coerencia");
+        verify(transactionService, never()).executarGeracao(any(), any(), any(), any());
+    }
+
+    @Test
+    void deveReutilizarPreValidacaoMasRevalidarSaidaNovaEInvalidarCacheQuandoContextoMuda() {
+        ServicoCasoClinicoIa servico = servicoComChave();
+        CasoClinico caso = criarCaso();
+        when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
+        when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L)).thenReturn(List.of());
+        when(conteudoRepository.save(any(ConteudoClinico.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiClient.gerarConteudo(any(), any())).thenReturn(
+                validacaoCoerencia("COERENTE"), respostaIa(), validacaoCoerencia("COERENTE"),
+                respostaIa(), validacaoCoerencia("COERENTE"),
+                validacaoCoerencia("COERENTE"), respostaIa(), validacaoCoerencia("COERENTE"));
+        CasoClinicoIaRequestDTO requisicao = new CasoClinicoIaRequestDTO(
+                null, null, null, null, "Exacerbacao asmatica");
+        servico.gerarConteudo(1L, requisicao);
+        servico.gerarConteudo(1L, requisicao);
+        verify(aiClient, times(5)).gerarConteudo(any(), any());
+        caso.setObjetivoAprendizagem("Novo objetivo pedagogico");
+        servico.gerarConteudo(1L, requisicao);
+        verify(aiClient, times(8)).gerarConteudo(any(), any());
+    }
+
+    @Test
+    void deveEnviarPacienteFinalAoRevisorSemAlterarOriginalAntesDaAprovacao() {
+        ServicoCasoClinicoIa servico = servicoComChave();
+        CasoClinico caso = criarCaso();
+        Paciente paciente = new Paciente(7L, caso, "Simulado", "NAO_INFORMADO",
+                Sexo.NAO_INFORMADO, 0, EstadoCivil.NAO_INFORMADO, "NAO_INFORMADO", "NAO_INFORMADO");
+        when(casoRepository.findById(1L)).thenReturn(Optional.of(caso));
+        when(pacienteRepository.findByCasoClinicoIdCasoOrderByIdPacienteAsc(1L)).thenReturn(List.of(paciente));
+        CasoClinicoGeradoIaDTO gerado = respostaIa();
+        gerado.setPaciente(pacienteGerado(44, "FEMININO", "SOLTEIRO", "Docente", "65 kg", "170 cm"));
+        CasoClinicoGeradoIaDTO recusado = validacaoCoerencia("INCOERENTE");
+        recusado.setViolacoes(Map.of("idade", "Paciente candidato diverge do contexto"));
+        when(aiClient.gerarConteudo(any(), any())).thenReturn(validacaoCoerencia("COERENTE"), gerado, recusado);
+        CasoClinicoIaRequestDTO requisicao = new CasoClinicoIaRequestDTO(null, null, null, null, "Asma");
+        requisicao.setPermitirComplementoIa(true);
+        assertThatThrownBy(() -> servico.gerarConteudo(1L, requisicao))
+                .isInstanceOf(CoerenciaCasoClinicoException.class);
+        ArgumentCaptor<String> contextos = ArgumentCaptor.forClass(String.class);
+        verify(aiClient, times(3)).gerarConteudo(any(), contextos.capture());
+        assertThat(contextos.getAllValues().get(2)).contains("<paciente_candidato_final>", "idade: 44", "sexo: FEMININO");
+        assertThat(paciente.getIdade()).isZero();
+        verify(pacienteRepository, never()).save(any());
         verify(transactionService, never()).executarGeracao(any(), any(), any(), any());
     }
 

@@ -32,6 +32,11 @@ public class CasoClinicoLockService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
+    public void atualizarEntidadeBloqueada(Object entidade) {
+        entityManager.refresh(entidade, LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
     public CasoClinico bloquearRascunho(Long idCaso) {
         return bloquearRascunhos(java.util.List.of(idCaso)).get(idCaso);
     }

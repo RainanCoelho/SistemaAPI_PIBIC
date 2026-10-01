@@ -114,4 +114,10 @@
         <Class name="com.SistemaApiCrud.SistemaCrud.dto.CasoClinicoGeradoIaDTO"/>
         <Field name="paciente"/>
     </Match>
+    <!-- DTO de entrada, restrito a uma requisicao: reutiliza o contrato mutavel
+         PerguntaRequestDTO validado pelo Bean Validation e nunca e compartilhado em cache. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Class name="com.SistemaApiCrud.SistemaCrud.dto.SalvarPerguntasLoteDTO$Item"/>
+    </Match>
 </FindBugsFilter>

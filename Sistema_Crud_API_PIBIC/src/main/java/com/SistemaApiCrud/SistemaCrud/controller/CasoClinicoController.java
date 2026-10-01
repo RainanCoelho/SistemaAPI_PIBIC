@@ -116,6 +116,14 @@ public class CasoClinicoController {
         return ResponseEntity.ok(service.atualizar(id, caso, idProfessor));
     }
 
+    @PutMapping("/{casoId}/perguntas/lote")
+    public List<PerguntaResponseDTO> salvarPerguntasLote(
+            @PathVariable @Min(1) Long casoId,
+            @RequestBody @Valid com.SistemaApiCrud.SistemaCrud.dto.SalvarPerguntasLoteDTO lote) {
+        autorizacaoService.validarAcessoCaso(casoId);
+        return perguntaService.salvarEdicoesEmLote(casoId, lote);
+    }
+
     @PatchMapping("/{id}/publicar")
     public ResponseEntity<CasoClinicoResponseDTO> publicar(
             @PathVariable @Min(1) Long id,

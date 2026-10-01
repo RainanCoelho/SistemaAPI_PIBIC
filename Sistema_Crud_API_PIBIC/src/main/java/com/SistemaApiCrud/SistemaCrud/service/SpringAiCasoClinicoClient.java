@@ -19,11 +19,18 @@ import com.SistemaApiCrud.SistemaCrud.exception.TempoEsgotadoIaException;
 public class SpringAiCasoClinicoClient implements CasoClinicoAiClient {
 
     private final ChatClient clienteConversa;
+    private final ChatClient clienteCoerencia;
     private final ControleUsoIa controleUsoIa;
 
     public SpringAiCasoClinicoClient(
             ChatClient.Builder construtorClienteConversa,
             ControleUsoIa controleUsoIa) {
+        this.clienteCoerencia = construtorClienteConversa.clone()
+                .defaultAdvisors(StructuredOutputValidationAdvisor.builder()
+                        .outputType(com.SistemaApiCrud.SistemaCrud.dto.CoerenciaIaDTO.class)
+                        .maxRepeatAttempts(0)
+                        .build())
+                .build();
         this.clienteConversa = construtorClienteConversa
                 .defaultAdvisors(StructuredOutputValidationAdvisor.builder()
                         .outputType(CasoClinicoGeradoIaDTO.class)
@@ -42,8 +49,33 @@ public class SpringAiCasoClinicoClient implements CasoClinicoAiClient {
     public RespostaIaComMetricas<CasoClinicoGeradoIaDTO> gerarConteudoComMetricas(
             String instrucoesSistema,
             String contexto) {
+        return chamar(instrucoesSistema, contexto, false);
+    }
+
+    @Override
+    public RespostaIaComMetricas<CasoClinicoGeradoIaDTO> avaliarCoerencia(
+            String instrucoesSistema, String contexto) {
+        return chamar(instrucoesSistema, contexto, true);
+    }
+
+    private RespostaIaComMetricas<CasoClinicoGeradoIaDTO> chamar(
+            String instrucoesSistema, String contexto, boolean coerencia) {
         try {
             long inicio = System.nanoTime();
+            if (coerencia) {
+                var resposta = controleUsoIa.executar(() -> clienteCoerencia.prompt()
+                        .system(instrucoesSistema).user(contexto).call()
+                        .responseEntity(com.SistemaApiCrud.SistemaCrud.dto.CoerenciaIaDTO.class));
+                if (resposta == null) {
+                    throw new AiProviderException("A IA nao retornou uma avaliacao");
+                }
+                var avaliacao = resposta.entity();
+                if (avaliacao == null) {
+                    throw new AiProviderException("A IA retornou uma avaliacao em formato invalido");
+                }
+                return comMetricas(avaliacao.paraResultado(), resposta.response(),
+                        (System.nanoTime() - inicio) / 1_000_000L);
+            }
             ResponseEntity<ChatResponse, CasoClinicoGeradoIaDTO> resposta = controleUsoIa.executar(() -> clienteConversa
                     .prompt()
                     .system(instrucoesSistema)

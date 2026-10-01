@@ -34,6 +34,9 @@ public interface PerguntaRepository extends JpaRepository<Pergunta, Long> {
 
     Page<Pergunta> findByCasoClinicoProfessorId(Long idProfessor, Pageable pageable);
 
+    @Query("select item.casoClinico.idCaso from Pergunta item where item.id = :id")
+    Optional<Long> findIdCasoById(@Param("id") Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select pergunta from Pergunta pergunta where pergunta.id = :idPergunta")
     Optional<Pergunta> findByIdForUpdate(@Param("idPergunta") Long idPergunta);

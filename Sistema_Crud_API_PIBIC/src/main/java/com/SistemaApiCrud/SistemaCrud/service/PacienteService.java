@@ -50,19 +50,20 @@ public class PacienteService {
 
     @Transactional
     public PacienteDTO atualizar(Long id, PacienteDTO dto) {
-        Paciente paciente = buscarEntityPorIdParaAtualizacao(id);
-        Long idCasoAtual = paciente.getCasoClinico().getIdCaso();
+        Long idCasoAtual = buscarIdCaso(id);
         Long idCasoDestino = idCasoObrigatorio(dto);
         Map<Long, CasoClinico> casos = casoLockService.bloquearRascunhos(
                 List.of(idCasoAtual, idCasoDestino));
+        Paciente paciente = bloquearFilho(id, idCasoAtual);
         aplicarDados(dto, paciente, casos.get(idCasoDestino));
         return paraDTO(paciente);
     }
 
     @Transactional
     public void deletar(Long id) {
-        Paciente paciente = buscarEntityPorIdParaAtualizacao(id);
-        casoLockService.bloquearRascunho(paciente.getCasoClinico().getIdCaso());
+        Long idCaso = buscarIdCaso(id);
+        casoLockService.bloquearRascunho(idCaso);
+        bloquearFilho(id, idCaso);
         repository.deleteById(id);
     }
 
@@ -110,6 +111,21 @@ public class PacienteService {
     private Paciente buscarEntityPorId(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Paciente nao encontrado"));
+    }
+
+    private Long buscarIdCaso(Long id) {
+        return repository.findIdCasoById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Recurso nao encontrado"));
+    }
+
+    private Paciente bloquearFilho(Long id, Long idCasoEsperado) {
+        Paciente entidade = buscarEntityPorIdParaAtualizacao(id);
+        casoLockService.atualizarEntidadeBloqueada(entidade);
+        if (!idCasoEsperado.equals(entidade.getCasoClinico().getIdCaso())) {
+            throw new com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException(
+                    "O recurso mudou de caso durante a operacao; atualize e tente novamente");
+        }
+        return entidade;
     }
 
     private Paciente buscarEntityPorIdParaAtualizacao(Long id) {

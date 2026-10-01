@@ -22,6 +22,9 @@ public interface ConteudoClinicoRepository extends JpaRepository<ConteudoClinico
 
     Optional<ConteudoClinico> findFirstByCasoClinicoIdCasoOrderByIdConteudoDesc(Long idCaso);
 
+    @Query("select item.casoClinico.idCaso from ConteudoClinico item where item.idConteudo = :id")
+    Optional<Long> findIdCasoById(@Param("id") Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select conteudo from ConteudoClinico conteudo where conteudo.idConteudo = :idConteudo")
     Optional<ConteudoClinico> findByIdForUpdate(@Param("idConteudo") Long idConteudo);

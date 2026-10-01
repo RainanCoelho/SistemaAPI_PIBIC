@@ -115,7 +115,8 @@ public class CasoClinicoService {
 
     @Transactional
     public CasoClinicoAlunoDTO buscarCompletoPublicadoPorId(Long id, Long idAluno) {
-        CasoClinico caso = buscarEntityPorId(id);
+        CasoClinico caso = repository.findByIdForUpdate(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Caso clinico nao encontrado"));
         if (caso.getStatus() != StatusCasoClinico.PUBLICADO) {
             throw new BusinessException("O caso clinico ainda nao esta publicado");
         }

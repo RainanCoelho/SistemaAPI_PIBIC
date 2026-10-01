@@ -74,7 +74,7 @@ Uma repetição com a mesma decisão é idempotente; tentar trocar uma decisão 
 
 ## Perfis de execução
 
-O perfil padrão é `prod`, que exige as credenciais e os segredos definidos no arquivo local `.env`, que não deve ser versionado. Para desenvolvimento local, ative explicitamente `SPRING_PROFILES_ACTIVE=dev`; isso evita que credenciais previsíveis e usuários de demonstração sejam usados por engano em uma implantação.
+O perfil padrão atual é `dev`. Para implantação, configure explicitamente `SPRING_PROFILES_ACTIVE=prod` e as credenciais e segredos necessários. O arquivo local `.env` não deve ser versionado.
 
 ## Piloto de IA com FreeLLMAPI
 
@@ -101,7 +101,7 @@ As opções e o procedimento operacional completo estão em [docs/ia-piloto.md](
 
 ## Proteções do piloto
 
-- Cada usuário autenticado pode fazer, por padrão, até 5 operações de geração por minuto e 20 por dia. Geração, reparo e validação internos da mesma operação idempotente consomem uma única unidade; há no máximo 3 chamadas simultâneas ao provedor no processo.
+- Os limites estão desabilitados por padrão para testes (`IA_LIMITES_HABILITADOS=false`). Quando habilitados, os valores padrão são 5 operações por usuário/minuto, 20 por usuário/dia e 3 chamadas simultâneas. Geração, reparo e validação internos da mesma operação idempotente consomem uma única unidade.
 - Um limite excedido responde com `429 Too Many Requests` e o cabeçalho `Retry-After`, em segundos.
 - Quando os provedores gratuitos esgotam temporariamente a capacidade, a API responde com `503 Service Unavailable` e `Retry-After`.
 - Uma chamada de IA que exceda 60 segundos responde com `504 Gateway Timeout`.
@@ -111,7 +111,23 @@ As opções e o procedimento operacional completo estão em [docs/ia-piloto.md](
 - Corpos de requisição maiores que 1 MiB respondem com `413 Content Too Large`.
 - Os limites podem ser ajustados pelas variáveis `IA_LIMITE_POR_MINUTO`, `IA_LIMITE_POR_DIA`, `IA_MAXIMO_SIMULTANEAS`, `IA_TEMPO_LIMITE`, `IA_IDEMPOTENCIA_TTL` e `HTTP_LIMITE_CORPO_BYTES`.
 
-As cotas por usuário são persistidas no PostgreSQL. O limite de chamadas simultâneas continua local a cada processo; antes de escalar horizontalmente, ele deve ser coordenado entre réplicas. O ledger de idempotência também fica no PostgreSQL e evita repetir uma mesma tentativa mesmo após perda da resposta HTTP, sem duplicar conteúdo clínico.
+Quando habilitados, cotas e vagas simultâneas são coordenadas pelo banco em `ControleUsoIaStore`. O ledger de idempotência também fica no PostgreSQL e evita repetir uma mesma tentativa mesmo após perda da resposta HTTP, sem duplicar conteúdo clínico.
+
+## Desempenho e recuperação da geração
+
+A coerência usa um contrato compacto com status e violações. Pré-validações aprovadas podem ser reutilizadas por cinco minutos, em cache local de até 256 hashes; o hash inclui contexto completo, versão do prompt e modelo configurado. Alterar paciente, âncoras ou conteúdo invalida a entrada. A pós-validação da nova saída sempre permanece e recebe o paciente candidato efetivamente persistível. Para desativar o cache, use `APP_IA_CACHE_PRE_VALIDACAO_TTL=0s`.
+
+O caminho normal continua com três chamadas, reduzidas a duas em um acerto do cache. Confirmações e reparos continuam limitados; o reparo recebe os campos válidos da resposta parcial. Antes de cada chamada clínica, verifica-se se os seis minutos de orçamento da operação ainda comportam o timeout do provedor. Isso não cancela uma chamada já em execução nem impõe prazo rígido à transação final. O front aguarda até 390 segundos para geração/ajuste clínico e 75 segundos para perguntas. Configure o timeout do proxy/gateway de acordo com essa janela.
+
+Eventos `ia_fase` registram duração, resultado, tokens/modelo quando disponíveis e identificador da solicitação, sem texto clínico. Incluem pré-validação, confirmação, geração, reparo, pós-validação e persistência. Para calcular p50/p95 por fase e resultado em um log de execução:
+
+```powershell
+./scripts/resumir-latencia-ia.ps1 -LogPath ./execucao.log
+```
+
+`PUT /casos/{id}/perguntas/lote` salva de 1 a 100 perguntas em transação única. Cada item contém `id` (nulo para criação) e `pergunta` no contrato de `PerguntaRequest`; a resposta mantém a ordem recebida. O lote rejeita IDs repetidos e perguntas de outro caso. Criar itens sem ID não tem garantia de idempotência se a resposta se perder; confira a lista persistida antes de repetir uma criação incerta.
+
+As otimizações não incluem troca automática de modelo, redução do teto de tokens ou jobs assíncronos. Essas decisões dependem de medições reais de latência e qualidade; nenhum ganho percentual de inferência foi medido nesta alteração. Detalhes e validação em [docs/correcoes-revisao-2026-09-05.md](docs/correcoes-revisao-2026-09-05.md).
 
 ## Dados clínicos e revisão humana
 

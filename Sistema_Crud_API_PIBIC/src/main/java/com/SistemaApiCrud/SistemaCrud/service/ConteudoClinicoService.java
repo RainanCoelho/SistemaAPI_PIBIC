@@ -50,19 +50,20 @@ public class ConteudoClinicoService {
 
     @Transactional
     public ConteudoClinicoDTO atualizar(Long id, ConteudoClinicoDTO dto) {
-        ConteudoClinico conteudo = buscarEntityPorIdParaAtualizacao(id);
-        Long idCasoAtual = conteudo.getCasoClinico().getIdCaso();
+        Long idCasoAtual = buscarIdCaso(id);
         Long idCasoDestino = idCasoObrigatorio(dto);
         Map<Long, CasoClinico> casos = casoLockService.bloquearRascunhos(
                 List.of(idCasoAtual, idCasoDestino));
+        ConteudoClinico conteudo = bloquearFilho(id, idCasoAtual);
         aplicarDados(dto, conteudo, casos.get(idCasoDestino));
         return paraDTO(conteudo);
     }
 
     @Transactional
     public void deletar(Long id) {
-        ConteudoClinico conteudo = buscarEntityPorIdParaAtualizacao(id);
-        casoLockService.bloquearRascunho(conteudo.getCasoClinico().getIdCaso());
+        Long idCaso = buscarIdCaso(id);
+        casoLockService.bloquearRascunho(idCaso);
+        bloquearFilho(id, idCaso);
         repository.deleteById(id);
     }
 
@@ -106,6 +107,21 @@ public class ConteudoClinicoService {
     private ConteudoClinico buscarEntityPorId(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Conteudo clinico nao encontrado"));
+    }
+
+    private Long buscarIdCaso(Long id) {
+        return repository.findIdCasoById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Recurso nao encontrado"));
+    }
+
+    private ConteudoClinico bloquearFilho(Long id, Long idCasoEsperado) {
+        ConteudoClinico entidade = buscarEntityPorIdParaAtualizacao(id);
+        casoLockService.atualizarEntidadeBloqueada(entidade);
+        if (!idCasoEsperado.equals(entidade.getCasoClinico().getIdCaso())) {
+            throw new com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException(
+                    "O recurso mudou de caso durante a operacao; atualize e tente novamente");
+        }
+        return entidade;
     }
 
     private ConteudoClinico buscarEntityPorIdParaAtualizacao(Long id) {

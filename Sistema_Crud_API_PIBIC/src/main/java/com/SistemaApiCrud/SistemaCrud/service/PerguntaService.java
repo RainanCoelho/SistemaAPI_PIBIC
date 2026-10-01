@@ -120,6 +120,32 @@ public class PerguntaService {
     }
 
     @Transactional
+    public List<PerguntaResponseDTO> salvarEdicoesEmLote(
+            Long idCaso, com.SistemaApiCrud.SistemaCrud.dto.SalvarPerguntasLoteDTO lote) {
+        if (lote == null || lote.perguntas() == null || lote.perguntas().isEmpty()
+                || lote.perguntas().size() > 100) {
+            throw new BadRequestException("Informe entre 1 e 100 perguntas");
+        }
+        casoLockService.bloquearRascunho(idCaso);
+        Set<Long> ids = new HashSet<>();
+        for (var item : lote.perguntas()) {
+            if (item == null || item.pergunta() == null
+                    || (item.pergunta().getIdCaso() != null && !idCaso.equals(item.pergunta().getIdCaso()))) {
+                throw new BadRequestException("Todas as perguntas devem pertencer ao caso informado");
+            }
+            if (item.id() != null && (!ids.add(item.id()) || !idCaso.equals(buscarIdCaso(item.id())))) {
+                throw new BadRequestException("O lote contem uma pergunta repetida ou de outro caso");
+            }
+        }
+        List<PerguntaResponseDTO> respostas = new ArrayList<>();
+        for (var item : lote.perguntas()) {
+            respostas.add(item.id() == null ? salvarNoCaso(idCaso, item.pergunta())
+                    : atualizar(item.id(), item.pergunta()));
+        }
+        return respostas;
+    }
+
+    @Transactional
     public PerguntaResponseDTO salvarEmCaso(Long idCaso, PerguntaRequestDTO dto) {
         return salvarNoCaso(idCaso, dto);
     }
@@ -271,12 +297,12 @@ public class PerguntaService {
 
     @Transactional
     public PerguntaResponseDTO atualizar(Long id, PerguntaRequestDTO dto) {
-        Pergunta pergunta = buscarEntityPorIdParaAtualizacao(id);
-        validarPergunta(dto, pergunta.getTipo());
-        Long idCasoAtual = pergunta.getCasoClinico().getIdCaso();
+        Long idCasoAtual = buscarIdCaso(id);
         Long idCasoDestino = dto.getIdCaso() != null ? dto.getIdCaso() : idCasoAtual;
         Map<Long, CasoClinico> casosBloqueados = casoLockService.bloquearRascunhos(
                 List.of(idCasoAtual, idCasoDestino));
+        Pergunta pergunta = bloquearFilho(id, idCasoAtual);
+        validarPergunta(dto, pergunta.getTipo());
         CasoClinico caso = dto.getIdCaso() != null
                 ? casosBloqueados.get(idCasoDestino)
                 : null;
@@ -291,8 +317,9 @@ public class PerguntaService {
 
     @Transactional
     public void deletar(Long id) {
-        Pergunta pergunta = buscarEntityPorIdParaAtualizacao(id);
-        casoLockService.bloquearRascunho(pergunta.getCasoClinico().getIdCaso());
+        Long idCaso = buscarIdCaso(id);
+        casoLockService.bloquearRascunho(idCaso);
+        bloquearFilho(id, idCaso);
         alternativaRepository.deleteByPerguntaId(id);
         repository.deleteById(id);
     }
@@ -304,6 +331,21 @@ public class PerguntaService {
     private Pergunta buscarEntityPorId(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pergunta nao encontrada"));
+    }
+
+    private Long buscarIdCaso(Long id) {
+        return repository.findIdCasoById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Recurso nao encontrado"));
+    }
+
+    private Pergunta bloquearFilho(Long id, Long idCasoEsperado) {
+        Pergunta entidade = buscarEntityPorIdParaAtualizacao(id);
+        casoLockService.atualizarEntidadeBloqueada(entidade);
+        if (!idCasoEsperado.equals(entidade.getCasoClinico().getIdCaso())) {
+            throw new com.SistemaApiCrud.SistemaCrud.exception.ConflitoEstadoException(
+                    "O recurso mudou de caso durante a operacao; atualize e tente novamente");
+        }
+        return entidade;
     }
 
     private Pergunta buscarEntityPorIdParaAtualizacao(Long id) {

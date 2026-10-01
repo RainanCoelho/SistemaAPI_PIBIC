@@ -22,6 +22,9 @@ public interface PacienteRepository extends JpaRepository<Paciente, Long> {
 
     Optional<Paciente> findFirstByCasoClinicoIdCasoOrderByIdPacienteAsc(Long idCaso);
 
+    @Query("select item.casoClinico.idCaso from Paciente item where item.idPaciente = :id")
+    Optional<Long> findIdCasoById(@Param("id") Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select paciente from Paciente paciente where paciente.idPaciente = :idPaciente")
     Optional<Paciente> findByIdForUpdate(@Param("idPaciente") Long idPaciente);

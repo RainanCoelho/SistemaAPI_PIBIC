@@ -39,8 +39,8 @@ public class CasoClinicoIaTransactionService {
             String fingerprintEsperado,
             List<Long> idsPacientesEsperados,
             Function<CasoClinico, T> operacao) {
-        bloquearPacientesEsperados(idCaso, idsPacientesEsperados);
         CasoClinico caso = casoLockService.bloquearRascunho(idCaso);
+        bloquearPacientesEsperados(idCaso, idsPacientesEsperados);
         validarContextoInalterado(caso, fingerprintEsperado);
         return concluirIdempotencia(operacao.apply(caso));
     }
@@ -52,11 +52,12 @@ public class CasoClinicoIaTransactionService {
             String fingerprintEsperado,
             List<Long> idsPacientesEsperados,
             BiFunction<CasoClinico, ConteudoClinico, T> operacao) {
+        CasoClinico caso = casoLockService.bloquearRascunho(idCaso);
         bloquearPacientesEsperados(idCaso, idsPacientesEsperados);
         ConteudoClinico conteudo = conteudoRepository.findByIdForUpdate(idConteudoEsperado)
                 .orElseThrow(() -> contextoAlterado(
                         "O conteudo clinico mudou durante o ajuste; tente novamente"));
-        CasoClinico caso = casoLockService.bloquearRascunho(idCaso);
+        casoLockService.atualizarEntidadeBloqueada(conteudo);
 
         if (conteudo.getCasoClinico() == null
                 || !idCaso.equals(conteudo.getCasoClinico().getIdCaso())) {
